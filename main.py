@@ -1,53 +1,46 @@
 
 #!/usr/bin/env python3
 """
-Binance Testnet RSI Paper-Trading Bot (CCXT)
+Multi-Pair RSI + EMA Bot (Binance Testnet)
 -------------------------------------------
-• Exchange: Binance (Testnet / Sandbox mode via ccxt.set_sandbox_mode)
-• Strategy: RSI mean-reversion on a chosen symbol/timeframe
-• Mode: DRY-RUN by default. Use BOT_LIVE=true to place real orders (against Testnet API keys).
-• Requirements: pip install ccxt pandas numpy python-dotenv
-• Usage: export/test env vars (see below) and run `python main.py`
-IMPORTANT: Use Testnet API keys from https://testnet.binance.vision/ for safety.
+- الأزواج: BTC/USDT, ETH/USDT, BNB/USDT, SOL/USDT
+- كل زوج: رصيد افتراضي 200 دولار، مخاطرة 2%-3%
+- مؤشرات: RSI + EMA20 & EMA50
+- Take Profit / Stop Loss محسوبة
+- الوضع الافتراضي: BOT_LIVE=false (Testnet)
 """
 
 import os
 import time
 import math
-from datetime import datetime, timezone
-
-import numpy as np
+import threading
 import pandas as pd
+import numpy as np
 import ccxt
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# -------------------- User Settings (via env vars) --------------------
-SYMBOL = os.getenv("BOT_SYMBOL", "BTC/USDT")
+# -------------------- الإعدادات --------------------
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT"]
 TIMEFRAME = os.getenv("BOT_TIMEFRAME", "15m")
-RSI_PERIOD = int(os.getenv("BOT_RSI_PERIOD", "14"))
-RSI_OVERSOLD = float(os.getenv("BOT_RSI_OS", "30"))
-RSI_OVERBOUGHT = float(os.getenv("BOT_RSI_OB", "70"))
+RSI_PERIOD = int(os.getenv("BOT_RSI_PERIOD", 14))
+RSI_OS = float(os.getenv("RSI_OS", 30))
+RSI_OB = float(os.getenv("RSI_OB", 70))
+ACCOUNT_PER_PAIR = float(os.getenv("ACCOUNT_PER_PAIR", 200))
+RISK_PER_TRADE_USD = float(os.getenv("RISK_PER_TRADE_USD", 4))
+TAKE_PROFIT_R = float(os.getenv("TAKE_PROFIT_R", 1.5))
+BOT_LIVE = os.getenv("BOT_LIVE", "false").lower() == "true"
 
-# Risk settings
-ACCOUNT_ALLOCATION_USD = float(os.getenv("BOT_ALLOCATION_USD", "200"))
-RISK_PER_TRADE_USD = float(os.getenv("BOT_RISK_USD", "5"))
-TAKE_PROFIT_R_MULTIPLE = float(os.getenv("BOT_TP_R", "1.5"))
-
-# Order controls
-MIN_NOTIONAL_USD = float(os.getenv("BOT_MIN_NOTIONAL_USD", "10"))
-SLIPPAGE_BPS = float(os.getenv("BOT_SLIPPAGE_BPS", "10"))
-POLL_SECONDS = int(os.getenv("BOT_POLL_SECONDS", "30"))
-LIVE_TRADING = os.getenv("BOT_LIVE", "false").lower() == "true"
-PRINT_BALANCES_EVERY = int(os.getenv("BOT_PRINT_BAL_EVERY", "20"))
-
-# API keys (use Testnet keys)
 API_KEY = os.getenv("BINANCE_API_KEY", "")
 API_SECRET = os.getenv("BINANCE_API_SECRET", "")
 
-# ---------------------------------------------------------------------
+POLL_SECONDS = int(os.getenv("BOT_POLL_SECONDS", 30))
+MIN_NOTIONAL_USD = float(os.getenv("BOT_MIN_NOTIONAL_USD", "10"))
+SLIPPAGE_BPS = float(os.getenv("BOT_SLIPPAGE_BPS", "10"))
 
+# -------------------- الدوال --------------------
 def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -58,7 +51,7 @@ def rsi(series: pd.Series, period: int = 14) -> pd.Series:
     roll_up = pd.Series(gain).rolling(window=period, min_periods=period).mean()
     roll_down = pd.Series(loss).rolling(window=period, min_periods=period).mean()
     rs = roll_up / roll_down
-    rsi = 100.0 - (100.0 / (1.0 + rs))
+    rsi = 100 - (100 / (1 + rs))
     rsi.index = series.index
     return rsi
 
@@ -66,29 +59,28 @@ def pct_to_price(price: float, bps: float) -> float:
     return price * (1.0 + bps / 10000.0)
 
 def round_amount(exchange, symbol, amount):
-    market = exchange.market(symbol)
-    precision = market.get('precision', {})
-    amount_prec = precision.get('amount', None)
-    if amount_prec is None:
+    try:
+        market = exchange.market(symbol)
+        precision = market.get('precision', {})
+        amount_prec = precision.get('amount', None)
+        if amount_prec is None:
+            return amount
+        step = 10 ** (-amount_prec)
+        return math.floor(amount / step) * step
+    except:
         return amount
-    step = 10 ** (-amount_prec)
-    return math.floor(amount / step) * step
 
 def round_price(exchange, symbol, price):
-    market = exchange.market(symbol)
-    precision = market.get('precision', {})
-    price_prec = precision.get('price', None)
-    if price_prec is None:
+    try:
+        market = exchange.market(symbol)
+        precision = market.get('precision', {})
+        price_prec = precision.get('price', None)
+        if price_prec is None:
+            return price
+        step = 10 ** (-price_prec)
+        return math.floor(price / step) * step
+    except:
         return price
-    step = 10 ** (-price_prec)
-    return math.floor(price / step) * step
-
-def fetch_ohlcv_df(exchange, symbol, timeframe, limit=200):
-    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-    df = pd.DataFrame(ohlcv, columns=["ts","open","high","low","close","volume"])
-    df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
-    df.set_index("ts", inplace=True)
-    return df
 
 def make_exchange():
     exchange = ccxt.binance({
@@ -97,100 +89,142 @@ def make_exchange():
         "enableRateLimit": True,
         "options": {"defaultType": "spot"}
     })
-    # Use sandbox/testnet mode
     try:
         exchange.set_sandbox_mode(True)
     except Exception as e:
-        print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available in this ccxt version: {e}")
+        print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available: {e}")
     return exchange
 
-def compute_signals(df: pd.DataFrame):
-    df = df.copy()
-    df["rsi"] = rsi(df["close"], RSI_PERIOD)
-    df["buy_sig"] = (df["rsi"] < RSI_OVERSOLD)
-    df["sell_sig"] = (df["rsi"] > RSI_OVERBOUGHT)
+def fetch_ohlcv_df(exchange, symbol, timeframe, limit=200):
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+    df = pd.DataFrame(ohlcv, columns=["ts","open","high","low","close","volume"])
+    df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
+    df.set_index("ts", inplace=True)
     return df
 
-def size_position_usdt(entry_price: float) -> (float, float):
-    stop_pct = 0.01
+def compute_signals(df):
+    df = df.copy()
+    df["rsi"] = rsi(df["close"], RSI_PERIOD)
+    df["ema20"] = df["close"].ewm(span=20).mean()
+    df["ema50"] = df["close"].ewm(span=50).mean()
+    df["buy_sig"] = (df["rsi"] < RSI_OS) & (df["ema20"] > df["ema50"])
+    df["sell_sig"] = (df["rsi"] > RSI_OB) & (df["ema20"] < df["ema50"])
+    return df
+
+def size_position_usdt(entry_price: float, account_size: float = ACCOUNT_PER_PAIR) -> (float, float):
+    stop_pct = 0.02  # 2% stop loss
     qty = RISK_PER_TRADE_USD / (entry_price * stop_pct)
-    max_qty = ACCOUNT_ALLOCATION_USD / entry_price
+    max_qty = account_size / entry_price
     qty = min(qty, max_qty)
     notional = qty * entry_price
     return qty, notional
 
 def place_orders(exchange, symbol, side, entry_price, stop_price, take_profit_price, amount):
     results = {"entry": None, "stop": None, "tp": None}
-    if LIVE_TRADING:
+    if BOT_LIVE:
         entry_price = round_price(exchange, symbol, entry_price)
         amount = round_amount(exchange, symbol, amount)
         if amount * entry_price < MIN_NOTIONAL_USD:
-            print(f"[{utc_now_iso()}] Skipping: below min notional ({amount*entry_price:.2f} < {MIN_NOTIONAL_USD})")
+            print(f"[{utc_now_iso()}] Skipping {symbol}: below min notional ({amount*entry_price:.2f} < {MIN_NOTIONAL_USD})")
             return results
         try:
-            # Place a limit order as entry
             results["entry"] = exchange.create_order(symbol, "limit", side, amount, entry_price)
-            # Place TP and stop as separate limit orders (testnet supports these via normal orders)
             opp_side = "sell" if side == "buy" else "buy"
             results["tp"] = exchange.create_order(symbol, "limit", opp_side, amount, round_price(exchange, symbol, take_profit_price))
-            # Note: Binance Testnet may not support stopLimit via unified ccxt; leaving stop as info only.
             results["stop"] = {"stop_price": stop_price}
+            print(f"[{utc_now_iso()}] LIVE ORDER: {side.upper()} {amount:.6f} {symbol} @ {entry_price:.4f}")
         except Exception as e:
-            print(f"[{utc_now_iso()}] Order placement failed: {e}")
+            print(f"[{utc_now_iso()}] Order placement failed for {symbol}: {e}")
     else:
         print(f"[DRY-RUN] Would place {side.upper()} LIMIT {amount:.6f} {symbol} @ {entry_price:.4f}")
         print(f"[DRY-RUN] Would set STOP @ {stop_price:.4f} and TP @ {take_profit_price:.4f}")
     return results
 
-def main():
-    print(f"=== Binance Testnet RSI Bot | LIVE_TRADING={LIVE_TRADING} | {utc_now_iso()} ===")
-    exchange = make_exchange()
-    markets = exchange.load_markets()
-    if SYMBOL not in markets:
-        raise SystemExit(f"Symbol {SYMBOL} not found on Binance Testnet markets. Available pairs example: {list(markets)[:10]}")
-    iter_count = 0
-    in_position = False
-    position_side = None
+def process_symbol(exchange, symbol, positions):
+    """معالجة زوج واحد"""
+    try:
+        df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
+        df = compute_signals(df).dropna()
+        
+        if df.empty:
+            print(f"[{utc_now_iso()}] No data for {symbol}")
+            return
+            
+        last = df.iloc[-1]
+        price = float(last["close"])
+        rsi_v = float(last["rsi"])
+        ema20 = float(last["ema20"])
+        ema50 = float(last["ema50"])
+        
+        print(f"[{utc_now_iso()}] {symbol}: Price={price:.4f}, RSI={rsi_v:.2f}, EMA20={ema20:.4f}, EMA50={ema50:.4f}")
+        
+        if not positions[symbol]:
+            if last["buy_sig"]:
+                qty, notional = size_position_usdt(price)
+                entry_price = pct_to_price(price, -SLIPPAGE_BPS)
+                stop_price = price * 0.98  # 2% stop loss
+                tp_price = price + TAKE_PROFIT_R * (price - stop_price)
+                
+                print(f"[{utc_now_iso()}] BUY SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f}, EMA Bull)")
+                place_orders(exchange, symbol, "buy", entry_price, stop_price, tp_price, qty)
+                positions[symbol] = True
+                
+            elif last["sell_sig"]:
+                print(f"[{utc_now_iso()}] SELL SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f}, EMA Bear) - Spot mode, no short")
+        else:
+            # شروط الإغلاق
+            if rsi_v > 50 or last["sell_sig"]:
+                print(f"[{utc_now_iso()}] EXIT CONDITION: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f})")
+                positions[symbol] = False
+                
+    except Exception as e:
+        print(f"[{utc_now_iso()}] ERROR processing {symbol}: {e}")
 
+def main():
+    print(f"=== Multi-Pair RSI+EMA Bot | LIVE_TRADING={BOT_LIVE} | {utc_now_iso()} ===")
+    print(f"Symbols: {SYMBOLS}")
+    print(f"Account per pair: ${ACCOUNT_PER_PAIR}, Risk per trade: ${RISK_PER_TRADE_USD}")
+    
+    exchange = make_exchange()
+    try:
+        markets = exchange.load_markets()
+        for symbol in SYMBOLS:
+            if symbol not in markets:
+                print(f"Warning: {symbol} not found in markets")
+    except Exception as e:
+        print(f"Warning: Could not load markets: {e}")
+    
+    positions = {symbol: False for symbol in SYMBOLS}
+    
+    iter_count = 0
+    
     while True:
         try:
-            df = fetch_ohlcv_df(exchange, SYMBOL, TIMEFRAME, limit=max(200, RSI_PERIOD + 10))
-            df = compute_signals(df).dropna()
-            last = df.iloc[-1]
-            price = float(last["close"])
-            rsi_v = float(last["rsi"])
-            print(f"[{utc_now_iso()}] {SYMBOL} {TIMEFRAME} close={price:.4f} RSI={rsi_v:.2f}")
-
-            if iter_count % PRINT_BALANCES_EVERY == 0:
+            print(f"\n--- Iteration {iter_count + 1} | {utc_now_iso()} ---")
+            
+            # معالجة كل زوج
+            for symbol in SYMBOLS:
+                process_symbol(exchange, symbol, positions)
+                time.sleep(1)  # تأخير قصير بين الأزواج
+            
+            # طباعة الأرصدة كل 20 iteration
+            if iter_count % 20 == 0:
                 try:
                     bal = exchange.fetch_balance()
                     usdt_free = bal.get('USDT', {}).get('free', 0.0)
                     print(f"[{utc_now_iso()}] Free USDT (testnet): {usdt_free}")
                 except Exception as e:
                     print(f"[{utc_now_iso()}] fetch_balance() failed: {e}")
-
-            if not in_position:
-                if last["buy_sig"]:
-                    qty, notional = size_position_usdt(price)
-                    entry_price = pct_to_price(price, -SLIPPAGE_BPS)
-                    stop_price = price * 0.99
-                    tp_price = price + TAKE_PROFIT_R_MULTIPLE * (price - stop_price)
-                    place_orders(exchange, SYMBOL, "buy", entry_price, stop_price, tp_price, qty)
-                    in_position = True
-                    position_side = "long"
-                elif last["sell_sig"]:
-                    print(f"[{utc_now_iso()}] SELL signal (ignored on spot short).")
-            else:
-                # simple exit suggestion based on RSI crossing above 50
-                if position_side == "long" and rsi_v > 50:
-                    print(f"[{utc_now_iso()}] Exit condition met (RSI>{50}). Consider closing position.")
+            
             iter_count += 1
+            print(f"Active positions: {[s for s, active in positions.items() if active]}")
             time.sleep(POLL_SECONDS)
+            
         except KeyboardInterrupt:
             print("Interrupted by user.")
             break
         except Exception as e:
-            print(f"[{utc_now_iso()}] ERROR: {e}")
+            print(f"[{utc_now_iso()}] MAIN LOOP ERROR: {e}")
             time.sleep(POLL_SECONDS)
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 """
-واجهة ويب لبوت التداول - عرض بيانات RSI والإشارات
+واجهة ويب متعددة الأزواج - عرض بيانات RSI + EMA والإشارات
 """
 
 from flask import Flask, render_template, jsonify
@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 import os
 import requests
-from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOL, TIMEFRAME, RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT, LIVE_TRADING
+from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOLS, TIMEFRAME, RSI_PERIOD, RSI_OS, RSI_OB, BOT_LIVE, ACCOUNT_PER_PAIR
 
 # ReplDB للحفظ الثابت
 REPLIT_DB_URL = os.environ.get('REPLIT_DB_URL')
@@ -35,14 +35,14 @@ def load_from_db(key, default=None):
             pass
     return default
 
-def add_new_trade(side, entry_price, quantity, stop_loss, take_profit):
+def add_new_trade(symbol, side, entry_price, quantity, stop_loss, take_profit):
     """إضافة صفقة جديدة"""
-    global trade_counter, current_position
+    global trade_counter
     trade_counter += 1
     
     trade = {
         'id': trade_counter,
-        'symbol': SYMBOL,
+        'symbol': symbol,
         'side': side,
         'entry_price': entry_price,
         'quantity': quantity,
@@ -56,7 +56,6 @@ def add_new_trade(side, entry_price, quantity, stop_loss, take_profit):
     }
     
     latest_data['trades']['active'].append(trade)
-    current_position = trade
     
     # حفظ في قاعدة البيانات
     save_to_db('trades_data', latest_data['trades'])
@@ -64,24 +63,23 @@ def add_new_trade(side, entry_price, quantity, stop_loss, take_profit):
     
     return trade
 
-def update_active_trades(current_price):
-    """تحديث الصفقات النشطة"""
-    global current_position
-    
+def update_active_trades():
+    """تحديث الصفقات النشطة بأسعار حالية"""
     for trade in latest_data['trades']['active']:
-        trade['current_price'] = current_price
-        
-        if trade['side'] == 'buy':
-            trade['pnl'] = (current_price - trade['entry_price']) * trade['quantity']
-            trade['pnl_percentage'] = ((current_price - trade['entry_price']) / trade['entry_price']) * 100
-        else:
-            trade['pnl'] = (trade['entry_price'] - current_price) * trade['quantity']
-            trade['pnl_percentage'] = ((trade['entry_price'] - current_price) / trade['entry_price']) * 100
+        symbol = trade['symbol']
+        if symbol in latest_data['pairs']:
+            current_price = latest_data['pairs'][symbol]['price']
+            trade['current_price'] = current_price
+            
+            if trade['side'] == 'buy':
+                trade['pnl'] = (current_price - trade['entry_price']) * trade['quantity']
+                trade['pnl_percentage'] = ((current_price - trade['entry_price']) / trade['entry_price']) * 100
+            else:
+                trade['pnl'] = (trade['entry_price'] - current_price) * trade['quantity']
+                trade['pnl_percentage'] = ((trade['entry_price'] - current_price) / trade['entry_price']) * 100
 
 def close_trade(trade_id, exit_price, reason="يدوي"):
     """إغلاق صفقة"""
-    global current_position
-    
     for i, trade in enumerate(latest_data['trades']['active']):
         if trade['id'] == trade_id:
             trade['exit_price'] = exit_price
@@ -104,7 +102,6 @@ def close_trade(trade_id, exit_price, reason="يدوي"):
             
             # تحديث الإحصائيات
             update_trade_stats()
-            current_position = None
             
             # حفظ في قاعدة البيانات
             save_to_db('trades_data', latest_data['trades'])
@@ -156,27 +153,30 @@ saved_trades = load_from_db('trades_data', {
 
 # متغيرات عامة لحفظ البيانات
 latest_data = {
-    'price': 0,
-    'rsi': 0,
-    'signal': 'لا توجد إشارة',
+    'pairs': {},  # {symbol: {price, rsi, ema20, ema50, signal, etc}}
     'balance': 0,
     'timestamp': '',
     'status': 'متصل',
-    'history': [],
     'trades': saved_trades
 }
 
+# إنشاء بيانات أولية للأزواج
+for symbol in SYMBOLS:
+    latest_data['pairs'][symbol] = {
+        'price': 0,
+        'rsi': 0,
+        'ema20': 0,
+        'ema50': 0,
+        'signal': 'لا توجد إشارة',
+        'signal_color': 'gray',
+        'volume': 0
+    }
+
 # متغير لتتبع الصفقات
-current_position = None
 trade_counter = load_from_db('trade_counter', 0)
 
-# البحث عن الصفقة النشطة
-for trade in latest_data['trades']['active']:
-    if trade['status'] == 'نشط':
-        current_position = trade
-        break
-
 print(f"تم تحميل {len(latest_data['trades']['completed'])} صفقة مكتملة و {len(latest_data['trades']['active'])} صفقة نشطة")
+print(f"الأزواج المتابعة: {SYMBOLS}")
 
 def update_data():
     """تحديث البيانات في الخلفية"""
@@ -185,73 +185,78 @@ def update_data():
     
     while True:
         try:
-            # جلب البيانات
-            df = fetch_ohlcv_df(exchange, SYMBOL, TIMEFRAME, limit=max(200, RSI_PERIOD + 10))
-            df = compute_signals(df).dropna()
-            last = df.iloc[-1]
-            
-            price = float(last["close"])
-            rsi_v = float(last["rsi"])
+            for symbol in SYMBOLS:
+                try:
+                    # جلب البيانات
+                    df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
+                    df = compute_signals(df).dropna()
+                    
+                    if df.empty:
+                        continue
+                        
+                    last = df.iloc[-1]
+                    
+                    price = float(last["close"])
+                    rsi_v = float(last["rsi"])
+                    ema20 = float(last["ema20"])
+                    ema50 = float(last["ema50"])
+                    volume = float(last["volume"])
+                    
+                    # تحديد الإشارة
+                    signal = 'لا توجد إشارة'
+                    signal_color = 'gray'
+                    
+                    if last["buy_sig"]:
+                        signal = f'🟢 إشارة شراء (RSI: {rsi_v:.1f})'
+                        signal_color = 'green'
+                        # إضافة صفقة جديدة (محاكاة)
+                        if BOT_LIVE:
+                            quantity = ACCOUNT_PER_PAIR / price
+                            stop_loss = price * 0.98
+                            take_profit = price * 1.03
+                            add_new_trade(symbol, 'buy', price, quantity, stop_loss, take_profit)
+                    elif last["sell_sig"]:
+                        signal = f'🔴 إشارة بيع (RSI: {rsi_v:.1f})'
+                        signal_color = 'red'
+                    elif ema20 > ema50:
+                        signal = f'📈 اتجاه صاعد (EMA20 > EMA50)'
+                        signal_color = 'lightgreen'
+                    elif ema20 < ema50:
+                        signal = f'📉 اتجاه هابط (EMA20 < EMA50)'
+                        signal_color = 'lightcoral'
+                    
+                    # تحديث بيانات الزوج
+                    latest_data['pairs'][symbol].update({
+                        'price': round(price, 4),
+                        'rsi': round(rsi_v, 2),
+                        'ema20': round(ema20, 4),
+                        'ema50': round(ema50, 4),
+                        'signal': signal,
+                        'signal_color': signal_color,
+                        'volume': round(volume, 2)
+                    })
+                    
+                except Exception as e:
+                    print(f"خطأ في معالجة {symbol}: {e}")
+                    latest_data['pairs'][symbol]['signal'] = f'خطأ: {str(e)[:30]}'
+                    latest_data['pairs'][symbol]['signal_color'] = 'red'
             
             # تحديث الصفقات النشطة
-            update_active_trades(price)
-            
-            # تحديد الإشارة وإدارة الصفقات
-            signal = 'لا توجد إشارة'
-            signal_color = 'gray'
-            
-            if last["buy_sig"] and not current_position:
-                signal = 'إشارة شراء'
-                signal_color = 'green'
-                # إضافة صفقة جديدة (محاكاة)
-                quantity = 100 / price  # $100 worth
-                stop_loss = price * 0.99
-                take_profit = price * 1.015
-                if LIVE_TRADING:
-                    add_new_trade('buy', price, quantity, stop_loss, take_profit)
-            elif last["sell_sig"] and current_position and current_position['side'] == 'buy':
-                signal = 'إشارة بيع'
-                signal_color = 'red'
-                if LIVE_TRADING and current_position:
-                    close_trade(current_position['id'], price, "إشارة RSI")
-            elif current_position:
-                # فحص شروط الإغلاق
-                if current_position['side'] == 'buy':
-                    if price <= current_position['stop_loss']:
-                        close_trade(current_position['id'], price, "Stop Loss")
-                    elif price >= current_position['take_profit']:
-                        close_trade(current_position['id'], price, "Take Profit")
-                    else:
-                        signal = f'صفقة نشطة - ربح/خسارة: {current_position["pnl"]:.2f}$'
-                        signal_color = 'green' if current_position['pnl'] > 0 else 'red'
+            update_active_trades()
             
             # محاولة جلب الرصيد
-            balance = 0
             try:
                 bal = exchange.fetch_balance()
                 balance = bal.get('USDT', {}).get('free', 0.0)
             except:
-                balance = 10000  # رصيد افتراضي
+                balance = len(SYMBOLS) * ACCOUNT_PER_PAIR  # رصيد افتراضي
             
-            # تحديث البيانات
+            # تحديث البيانات العامة
             latest_data.update({
-                'price': round(price, 2),
-                'rsi': round(rsi_v, 2),
-                'signal': signal,
-                'signal_color': signal_color,
                 'balance': round(balance, 2),
                 'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
                 'status': 'متصل'
             })
-            
-            # إضافة للتاريخ (آخر 50 نقطة)
-            latest_data['history'].append({
-                'time': latest_data['timestamp'],
-                'rsi': latest_data['rsi'],
-                'price': latest_data['price']
-            })
-            if len(latest_data['history']) > 50:
-                latest_data['history'].pop(0)
                 
         except Exception as e:
             latest_data['status'] = f'خطأ: {str(e)}'
@@ -261,7 +266,7 @@ def update_data():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', symbols=SYMBOLS)
 
 @app.route('/api/data')
 def get_data():
@@ -273,8 +278,12 @@ def get_trades():
 
 @app.route('/api/close_trade/<int:trade_id>')
 def close_trade_api(trade_id):
-    current_price = latest_data['price']
-    close_trade(trade_id, current_price, "إغلاق يدوي")
+    # العثور على الصفقة وإغلاقها بالسعر الحالي
+    for trade in latest_data['trades']['active']:
+        if trade['id'] == trade_id:
+            current_price = latest_data['pairs'][trade['symbol']]['price']
+            close_trade(trade_id, current_price, "إغلاق يدوي")
+            break
     return jsonify({'success': True})
 
 if __name__ == '__main__':
@@ -283,4 +292,6 @@ if __name__ == '__main__':
     data_thread.start()
     
     # بدء الخادم
+    print(f"تشغيل واجهة الويب على http://0.0.0.0:5000")
+    print(f"الأزواج المتابعة: {SYMBOLS}")
     app.run(host='0.0.0.0', port=5000, debug=False)
