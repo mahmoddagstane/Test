@@ -352,8 +352,11 @@ def update_data():
             try:
                 bal = exchange.fetch_balance()
                 balance = bal.get('USDT', {}).get('free', 0.0)
-            except:
+                latest_data['api_connected'] = True
+            except Exception as e:
+                print(f"خطأ في جلب الرصيد: {e}")
                 balance = len(SYMBOLS) * ACCOUNT_PER_PAIR  # رصيد افتراضي
+                latest_data['api_connected'] = False
 
             # تحديث البيانات العامة
             latest_data.update({
@@ -367,12 +370,17 @@ def update_data():
 
         except Exception as e:
             latest_data.update({
-                'status': f'خطأ: {str(e)}',
+                'status': f'خطأ في الاتصال: {str(e)[:50]}...',
                 'api_connected': False,
                 'data_source': 'error',
                 'live_trading': False
             })
             print(f"خطأ في تحديث البيانات: {e}")
+            
+            # في حالة الخطأ، استخدم البيانات التجريبية
+            print("التبديل إلى البيانات التجريبية...")
+            simulate_trading_data()
+            return
 
         time.sleep(30)  # تحديث كل 30 ثانية
 
