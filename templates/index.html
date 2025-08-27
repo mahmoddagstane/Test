@@ -14,56 +14,110 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #333333 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
+            color: white;
         }
         
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
             overflow: hidden;
+            border: 1px solid #333;
         }
         
         .header {
-            background: linear-gradient(45deg, #1e3c72, #2a5298);
+            background: linear-gradient(45deg, #0066cc, #004499, #002266);
             color: white;
-            padding: 20px;
+            padding: 25px 20px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         
         .header h1 {
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
             margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
         .status {
-            font-size: 1.1rem;
+            font-size: clamp(1rem, 2.5vw, 1.1rem);
             opacity: 0.9;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 10px;
         }
         
         .pairs-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
-            padding: 30px;
+            padding: 30px 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .pairs-grid {
+                grid-template-columns: 1fr;
+                padding: 20px 15px;
+                gap: 15px;
+            }
         }
         
         .pair-card {
-            background: white;
-            border-radius: 15px;
+            background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+            border-radius: 20px;
             padding: 25px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            border-left: 5px solid #3498db;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid #0066cc;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pair-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #0066cc, #0088ff, #0066cc);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { opacity: 0.5; }
+            to { opacity: 1; }
         }
         
         .pair-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 45px rgba(0,102,204,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+            border-color: #0088ff;
         }
         
         .pair-header {
@@ -71,18 +125,25 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .pair-title {
-            font-size: 1.8rem;
+            font-size: clamp(1.4rem, 3vw, 1.8rem);
             font-weight: bold;
-            color: #2c3e50;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
         
         .price-value {
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
             font-weight: bold;
-            color: #2980b9;
+            color: #0088ff;
+            background: rgba(0, 136, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 136, 255, 0.3);
         }
         
         .indicators-grid {
@@ -92,60 +153,80 @@
             margin-bottom: 20px;
         }
         
+        @media (max-width: 480px) {
+            .indicators-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+        
         .indicator {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 20px 15px;
+            border-radius: 15px;
             text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .indicator:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-2px);
         }
         
         .indicator-label {
             font-size: 0.9rem;
-            color: #7f8c8d;
-            margin-bottom: 5px;
+            color: #cccccc;
+            margin-bottom: 8px;
+            font-weight: 500;
         }
         
         .indicator-value {
-            font-size: 1.3rem;
+            font-size: clamp(1.1rem, 2.5vw, 1.3rem);
             font-weight: bold;
-            color: #2c3e50;
+            color: #ffffff;
         }
         
         .rsi-value {
-            color: #e74c3c;
+            color: #0088ff;
         }
         
         .ema-value {
-            color: #9b59b6;
+            color: #ffffff;
         }
         
         .signal-box {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 20px 15px;
+            border-radius: 15px;
             text-align: center;
             margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .signal-text {
             font-weight: bold;
-            padding: 10px 15px;
-            border-radius: 20px;
+            padding: 12px 20px;
+            border-radius: 25px;
             color: white;
             display: inline-block;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .rsi-gauge {
             position: relative;
             width: 120px;
             height: 60px;
-            margin: 10px auto;
+            margin: 15px auto;
         }
         
         .gauge-bg {
             width: 120px;
             height: 60px;
-            border: 4px solid #ecf0f1;
+            border: 4px solid #333333;
             border-bottom: none;
             border-radius: 60px 60px 0 0;
             position: relative;
@@ -157,37 +238,43 @@
             left: -4px;
             width: 120px;
             height: 60px;
-            border: 4px solid;
+            border: 4px solid #0066cc;
             border-bottom: none;
             border-radius: 60px 60px 0 0;
             transition: all 0.5s ease;
+            filter: drop-shadow(0 0 8px rgba(0,102,204,0.5));
         }
         
         .gauge-pointer {
             position: absolute;
             bottom: -2px;
             left: 50%;
-            width: 2px;
+            width: 3px;
             height: 50px;
-            background: #2c3e50;
+            background: linear-gradient(to top, #0066cc, #0088ff);
             transform-origin: bottom;
             transition: transform 0.5s ease;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(0,136,255,0.5);
         }
         
         .balance-section {
             grid-column: 1 / -1;
-            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            background: linear-gradient(45deg, #0066cc, #0088ff, #004499);
             color: white;
-            padding: 25px;
-            border-radius: 15px;
+            padding: 30px 25px;
+            border-radius: 20px;
             text-align: center;
             margin-top: 20px;
+            box-shadow: 0 15px 35px rgba(0,102,204,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .balance-value {
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 5vw, 2.5rem);
             font-weight: bold;
             margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
         .trades-section {
@@ -197,23 +284,35 @@
         
         .tabs {
             display: flex;
-            border-bottom: 2px solid #ecf0f1;
+            border-bottom: 2px solid #333333;
             margin-bottom: 20px;
+            overflow-x: auto;
+            gap: 5px;
         }
         
         .tab {
-            padding: 15px 30px;
-            background: #ecf0f1;
-            border: none;
+            padding: 15px 25px;
+            background: #1a1a1a;
+            border: 1px solid #333333;
             cursor: pointer;
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
             transition: all 0.3s ease;
-            border-radius: 10px 10px 0 0;
+            border-radius: 15px 15px 0 0;
+            color: #cccccc;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+        
+        .tab:hover {
+            background: #2a2a2a;
+            color: #ffffff;
         }
         
         .tab.active {
-            background: #3498db;
+            background: linear-gradient(45deg, #0066cc, #0088ff);
             color: white;
+            border-color: #0088ff;
+            box-shadow: 0 5px 15px rgba(0,102,204,0.3);
         }
         
         .tab-content {
@@ -225,35 +324,45 @@
         }
         
         .trade-item {
-            background: #f8f9fa;
-            border-radius: 12px;
+            background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+            border-radius: 15px;
             padding: 20px;
             margin-bottom: 15px;
-            border-left: 5px solid;
+            border-left: 5px solid #0066cc;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 15px;
             align-items: center;
-            transition: transform 0.2s ease;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .trade-item {
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                gap: 10px;
+                padding: 15px;
+            }
         }
         
         .trade-item:hover {
             transform: translateX(5px);
+            box-shadow: 0 10px 25px rgba(0,102,204,0.2);
         }
         
         .trade-item.profit {
-            border-left-color: #27ae60;
-            background: linear-gradient(135deg, #f8fff8, #f0fff0);
+            border-left-color: #00aa00;
+            background: linear-gradient(145deg, #1a2a1a, #1e2a1e);
         }
         
         .trade-item.loss {
-            border-left-color: #e74c3c;
-            background: linear-gradient(135deg, #fff8f8, #fff0f0);
+            border-left-color: #cc0000;
+            background: linear-gradient(145deg, #2a1a1a, #2a1e1e);
         }
         
         .trade-item.active {
-            border-left-color: #3498db;
-            background: linear-gradient(135deg, #f8f8ff, #f0f0ff);
+            border-left-color: #0088ff;
+            background: linear-gradient(145deg, #1a1a2a, #1e1e2a);
         }
         
         .trade-detail {
@@ -261,32 +370,35 @@
         }
         
         .trade-detail .label {
-            font-size: 0.85rem;
-            color: #7f8c8d;
+            font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+            color: #cccccc;
             margin-bottom: 5px;
             font-weight: 500;
         }
         
         .trade-detail .value {
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 2vw, 1rem);
             font-weight: bold;
-            color: #2c3e50;
+            color: #ffffff;
         }
         
         .close-btn {
-            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            background: linear-gradient(45deg, #cc0000, #ff0000);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 25px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 1.8vw, 0.9rem);
             transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(204,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .close-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+            box-shadow: 0 8px 20px rgba(204,0,0,0.4);
+            background: linear-gradient(45deg, #ff0000, #cc0000);
         }
         
         .stats-grid {
@@ -296,39 +408,61 @@
             margin-bottom: 30px;
         }
         
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 15px;
+            }
+        }
+        
         .stat-card {
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            padding: 20px;
-            border-radius: 12px;
+            background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+            padding: 25px 20px;
+            border-radius: 15px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: transform 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,102,204,0.3);
         }
         
         .stat-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,102,204,0.2);
+            border-color: #0088ff;
         }
         
         .stat-card .stat-value {
-            font-size: 1.8rem;
+            font-size: clamp(1.4rem, 3vw, 1.8rem);
             font-weight: bold;
             margin-bottom: 8px;
+            color: #ffffff;
         }
         
         .stat-card .stat-label {
-            font-size: 0.9rem;
-            color: #7f8c8d;
+            font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+            color: #cccccc;
             font-weight: 500;
         }
         
-        .profit-value { color: #27ae60; }
-        .loss-value { color: #e74c3c; }
+        .profit-value { 
+            color: #00cc00;
+            text-shadow: 0 0 10px rgba(0,204,0,0.5);
+        }
+        
+        .loss-value { 
+            color: #cc0000;
+            text-shadow: 0 0 10px rgba(204,0,0,0.5);
+        }
         
         .timestamp {
-            color: #7f8c8d;
-            font-size: 0.9rem;
-            margin-top: 15px;
+            color: #cccccc;
+            font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+            margin-top: 20px;
             text-align: center;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         @keyframes pulse {
@@ -345,18 +479,82 @@
             margin-top: 10px;
             padding: 8px 15px;
             border-radius: 20px;
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 1.8vw, 0.9rem);
             font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .ema-bull {
-            background: #d4edda;
-            color: #155724;
+            background: linear-gradient(45deg, rgba(0,204,0,0.2), rgba(0,255,0,0.1));
+            color: #00ff00;
+            border-color: #00cc00;
         }
         
         .ema-bear {
-            background: #f8d7da;
-            color: #721c24;
+            background: linear-gradient(45deg, rgba(204,0,0,0.2), rgba(255,0,0,0.1));
+            color: #ff4444;
+            border-color: #cc0000;
+        }
+        
+        /* تحسينات إضافية للهواتف */
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            
+            .container {
+                border-radius: 15px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .pair-card {
+                padding: 20px 15px;
+            }
+            
+            .balance-section {
+                padding: 25px 20px;
+            }
+            
+            .tabs {
+                padding: 0 5px;
+            }
+            
+            .tab {
+                padding: 12px 18px;
+                min-width: 100px;
+            }
+        }
+        
+        /* تأثيرات بصرية إضافية */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pair-card, .stat-card, .trade-item {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        /* تحسين التمرير */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #0066cc, #0088ff);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #0088ff, #00aaff);
         }
     </style>
 </head>
@@ -385,7 +583,7 @@
                 </div>
                 
                 <div id="stats-tab" class="tab-content active">
-                    <h3>📊 إحصائيات التداول الإجمالية</h3>
+                    <h3 style="color: #ffffff; margin-bottom: 20px;">📊 إحصائيات التداول الإجمالية</h3>
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-value" id="total-trades">0</div>
@@ -415,16 +613,16 @@
                 </div>
                 
                 <div id="active-tab" class="tab-content">
-                    <h3>🔥 الصفقات النشطة</h3>
+                    <h3 style="color: #ffffff; margin-bottom: 20px;">🔥 الصفقات النشطة</h3>
                     <div id="active-trades">
-                        <p style="text-align: center; color: #7f8c8d; padding: 20px;">لا توجد صفقات نشطة</p>
+                        <p style="text-align: center; color: #cccccc; padding: 20px;">لا توجد صفقات نشطة</p>
                     </div>
                 </div>
                 
                 <div id="completed-tab" class="tab-content">
-                    <h3>✅ الصفقات المكتملة</h3>
+                    <h3 style="color: #ffffff; margin-bottom: 20px;">✅ الصفقات المكتملة</h3>
                     <div id="completed-trades">
-                        <p style="text-align: center; color: #7f8c8d; padding: 20px;">لا توجد صفقات مكتملة</p>
+                        <p style="text-align: center; color: #cccccc; padding: 20px;">لا توجد صفقات مكتملة</p>
                     </div>
                 </div>
             </div>
@@ -459,13 +657,13 @@
                         <div class="indicator">
                             <div class="indicator-label">EMA 20/50</div>
                             <div class="indicator-value ema-value" id="ema20-${symbol.replace('/', '-')}">--</div>
-                            <div style="font-size: 0.9rem; margin-top: 5px;" id="ema50-${symbol.replace('/', '-')}">--</div>
+                            <div style="font-size: 0.9rem; margin-top: 5px; color: #cccccc;" id="ema50-${symbol.replace('/', '-')}">--</div>
                             <div class="ema-status" id="ema-status-${symbol.replace('/', '-')}">--</div>
                         </div>
                     </div>
                     
                     <div class="signal-box">
-                        <div class="signal-text" id="signal-${symbol.replace('/', '-')}" style="background-color: gray;">لا توجد إشارة</div>
+                        <div class="signal-text" id="signal-${symbol.replace('/', '-')}" style="background-color: #333333;">لا توجد إشارة</div>
                     </div>
                 </div>
             `;
@@ -519,7 +717,20 @@
                             // تحديث الإشارة
                             const signalElement = document.getElementById(`signal-${cleanSymbol}`);
                             signalElement.textContent = pairData.signal;
-                            signalElement.style.backgroundColor = pairData.signal_color || 'gray';
+                            
+                            // تحديد لون الإشارة حسب النوع
+                            let signalColor = '#333333';
+                            if (pairData.signal.includes('شراء')) {
+                                signalColor = 'linear-gradient(45deg, #00aa00, #00cc00)';
+                            } else if (pairData.signal.includes('بيع')) {
+                                signalColor = 'linear-gradient(45deg, #cc0000, #ff0000)';
+                            } else if (pairData.signal.includes('صاعد')) {
+                                signalColor = 'linear-gradient(45deg, #0066cc, #0088ff)';
+                            } else if (pairData.signal.includes('هابط')) {
+                                signalColor = 'linear-gradient(45deg, #ff6600, #ff8800)';
+                            }
+                            
+                            signalElement.style.background = signalColor;
                             
                             // تحديث مؤشر RSI
                             updateRSIGauge(pairData.rsi, cleanSymbol);
@@ -551,14 +762,15 @@
                 const angle = (rsi / 100) * 180;
                 pointer.style.transform = `translateX(-50%) rotate(${angle - 90}deg)`;
                 
-                let color = '#3498db';
+                let color = '#0066cc';
                 if (rsi < 30) {
-                    color = '#27ae60';
+                    color = '#00cc00';
                 } else if (rsi > 70) {
-                    color = '#e74c3c';
+                    color = '#cc0000';
                 }
                 
                 fill.style.borderColor = color;
+                pointer.style.background = `linear-gradient(to top, ${color}, #ffffff)`;
             }
         }
         
@@ -575,7 +787,7 @@
             // تحديث الصفقات النشطة
             const activeContainer = document.getElementById('active-trades');
             if (trades.active.length === 0) {
-                activeContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">لا توجد صفقات نشطة</p>';
+                activeContainer.innerHTML = '<p style="text-align: center; color: #cccccc; padding: 20px;">لا توجد صفقات نشطة</p>';
             } else {
                 activeContainer.innerHTML = trades.active.map(trade => createTradeHTML(trade, true)).join('');
             }
@@ -583,7 +795,7 @@
             // تحديث الصفقات المكتملة
             const completedContainer = document.getElementById('completed-trades');
             if (trades.completed.length === 0) {
-                completedContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">لا توجد صفقات مكتملة</p>';
+                completedContainer.innerHTML = '<p style="text-align: center; color: #cccccc; padding: 20px;">لا توجد صفقات مكتملة</p>';
             } else {
                 completedContainer.innerHTML = trades.completed.slice(-10).reverse().map(trade => createTradeHTML(trade, false)).join('');
             }
