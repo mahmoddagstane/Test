@@ -1137,7 +1137,7 @@
                 .then(data => {
                     // حفظ البيانات للاستخدام في النوافذ المنبثقة
                     latest_data = data;
-                    
+
                     // تحديث مؤشرات الاتصال والبيانات
                     updateConnectionStatus(data);
 
@@ -1381,28 +1381,28 @@
         function openBuyModal(symbol) {
             const modal = document.getElementById('buyModal');
             const currentPrice = latest_data?.pairs?.[symbol]?.price || 0;
-            
+
             document.getElementById('buySymbol').value = symbol;
             document.getElementById('buyCurrentPrice').value = currentPrice.toFixed(4);
             document.getElementById('buyEntryPrice').value = currentPrice.toFixed(4);
-            
+
             // حساب الكمية تلقائياً
             calculateBuyQuantity();
-            
+
             modal.style.display = 'block';
         }
 
         function openSellModal(symbol) {
             const modal = document.getElementById('sellModal');
             const currentPrice = latest_data?.pairs?.[symbol]?.price || 0;
-            
+
             document.getElementById('sellSymbol').value = symbol;
             document.getElementById('sellCurrentPrice').value = currentPrice.toFixed(4);
             document.getElementById('sellEntryPrice').value = currentPrice.toFixed(4);
-            
+
             // حساب الكمية تلقائياً
             calculateSellQuantity();
-            
+
             modal.style.display = 'block';
         }
 
@@ -1417,7 +1417,7 @@
         function calculateBuyQuantity() {
             const amount = parseFloat(document.getElementById('buyAmount').value) || 0;
             const price = parseFloat(document.getElementById('buyEntryPrice').value) || 0;
-            
+
             if (amount > 0 && price > 0) {
                 const quantity = amount / price;
                 document.getElementById('buyQuantity').value = quantity.toFixed(6);
@@ -1427,7 +1427,7 @@
         function calculateSellQuantity() {
             const amount = parseFloat(document.getElementById('sellAmount').value) || 0;
             const price = parseFloat(document.getElementById('sellEntryPrice').value) || 0;
-            
+
             if (amount > 0 && price > 0) {
                 const quantity = amount / price;
                 document.getElementById('sellQuantity').value = quantity.toFixed(6);
@@ -1443,7 +1443,7 @@
         // إرسال صفقات الشراء
         document.getElementById('buyForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const tradeData = {
                 symbol: document.getElementById('buySymbol').value,
                 side: 'buy',
@@ -1453,7 +1453,7 @@
                 stop_loss_percent: parseFloat(document.getElementById('buyStopLoss').value),
                 take_profit_percent: parseFloat(document.getElementById('buyTakeProfit').value)
             };
-            
+
             submitManualTrade(tradeData);
             closeBuyModal();
         });
@@ -1461,7 +1461,7 @@
         // إرسال صفقات البيع
         document.getElementById('sellForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const tradeData = {
                 symbol: document.getElementById('sellSymbol').value,
                 side: 'sell',
@@ -1471,7 +1471,7 @@
                 stop_loss_percent: parseFloat(document.getElementById('sellStopLoss').value),
                 take_profit_percent: parseFloat(document.getElementById('sellTakeProfit').value)
             };
-            
+
             submitManualTrade(tradeData);
             closeSellModal();
         });
@@ -1503,7 +1503,7 @@
         window.addEventListener('click', function(event) {
             const buyModal = document.getElementById('buyModal');
             const sellModal = document.getElementById('sellModal');
-            
+
             if (event.target === buyModal) {
                 closeBuyModal();
             }
