@@ -45,6 +45,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "python3 main.py"
 
+[[workflows.workflow]]
+name = "تشغيل لوحة Debug"
+author = 40313348
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 debug_dashboard.py"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

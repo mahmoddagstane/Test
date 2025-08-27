@@ -893,6 +893,10 @@
                     <i class="fas fa-robot" id="trading-icon"></i>
                     <span>التداول: <span id="trading-status">فحص...</span></span>
                 </div>
+                <div class="status-item" style="cursor: pointer;" onclick="openDebugPanel()">
+                    <i class="fas fa-bug"></i>
+                    <span>🔍 لوحة Debug</span>
+                </div>
             </div>
         </div>
 
@@ -1510,6 +1514,11 @@
 
         // متغير لحفظ البيانات الحالية
         let latest_data = {};
+
+        // دالة فتح لوحة Debug
+        function openDebugPanel() {
+            window.open('http://localhost:5001', '_blank');
+        }
 
         // تحديث البيانات كل 5 ثواني
         updateData();
