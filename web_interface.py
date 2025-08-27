@@ -10,7 +10,30 @@ import json
 import time
 from datetime import datetime, timezone
 import os
+import requests
 from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOL, TIMEFRAME, RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT, LIVE_TRADING
+
+# ReplDB للحفظ الثابت
+REPLIT_DB_URL = os.environ.get('REPLIT_DB_URL')
+
+def save_to_db(key, data):
+    """حفظ البيانات في ReplDB"""
+    if REPLIT_DB_URL:
+        try:
+            requests.post(f"{REPLIT_DB_URL}/{key}", data=json.dumps(data))
+        except:
+            pass
+
+def load_from_db(key, default=None):
+    """تحميل البيانات من ReplDB"""
+    if REPLIT_DB_URL:
+        try:
+            response = requests.get(f"{REPLIT_DB_URL}/{key}")
+            if response.status_code == 200:
+                return json.loads(response.text)
+        except:
+            pass
+    return default
 
 def add_new_trade(side, entry_price, quantity, stop_loss, take_profit):
     """إضافة صفقة جديدة"""
@@ -34,6 +57,11 @@ def add_new_trade(side, entry_price, quantity, stop_loss, take_profit):
     
     latest_data['trades']['active'].append(trade)
     current_position = trade
+    
+    # حفظ في قاعدة البيانات
+    save_to_db('trades_data', latest_data['trades'])
+    save_to_db('trade_counter', trade_counter)
+    
     return trade
 
 def update_active_trades(current_price):
@@ -77,6 +105,10 @@ def close_trade(trade_id, exit_price, reason="يدوي"):
             # تحديث الإحصائيات
             update_trade_stats()
             current_position = None
+            
+            # حفظ في قاعدة البيانات
+            save_to_db('trades_data', latest_data['trades'])
+            
             break
 
 def update_trade_stats():
@@ -104,6 +136,24 @@ def update_trade_stats():
 
 app = Flask(__name__)
 
+# تحميل البيانات المحفوظة
+saved_trades = load_from_db('trades_data', {
+    'active': [],
+    'completed': [],
+    'stats': {
+        'total_trades': 0,
+        'winning_trades': 0,
+        'losing_trades': 0,
+        'total_profit': 0,
+        'win_rate': 0,
+        'avg_profit': 0,
+        'avg_loss': 0,
+        'max_profit': 0,
+        'max_loss': 0,
+        'total_volume': 0
+    }
+})
+
 # متغيرات عامة لحفظ البيانات
 latest_data = {
     'price': 0,
@@ -113,27 +163,20 @@ latest_data = {
     'timestamp': '',
     'status': 'متصل',
     'history': [],
-    'trades': {
-        'active': [],
-        'completed': [],
-        'stats': {
-            'total_trades': 0,
-            'winning_trades': 0,
-            'losing_trades': 0,
-            'total_profit': 0,
-            'win_rate': 0,
-            'avg_profit': 0,
-            'avg_loss': 0,
-            'max_profit': 0,
-            'max_loss': 0,
-            'total_volume': 0
-        }
-    }
+    'trades': saved_trades
 }
 
 # متغير لتتبع الصفقات
 current_position = None
-trade_counter = 0
+trade_counter = load_from_db('trade_counter', 0)
+
+# البحث عن الصفقة النشطة
+for trade in latest_data['trades']['active']:
+    if trade['status'] == 'نشط':
+        current_position = trade
+        break
+
+print(f"تم تحميل {len(latest_data['trades']['completed'])} صفقة مكتملة و {len(latest_data['trades']['active'])} صفقة نشطة")
 
 def update_data():
     """تحديث البيانات في الخلفية"""
