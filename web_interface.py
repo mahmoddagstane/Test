@@ -189,7 +189,10 @@ def simulate_trading_data():
             latest_data.update({
                 'balance': round(len(SYMBOLS) * ACCOUNT_PER_PAIR, 2),
                 'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
-                'status': '🔄 وضع تجريبي (بدون API)'
+                'status': '🔄 وضع تجريبي (بدون API)',
+                'api_connected': False,
+                'data_source': 'simulated',
+                'live_trading': False
             })
             
             print(f"[{datetime.now().strftime('%H:%M:%S')}] تم تحديث البيانات التجريبية")
@@ -335,11 +338,19 @@ def update_data():
             latest_data.update({
                 'balance': round(balance, 2),
                 'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
-                'status': 'متصل'
+                'status': 'متصل',
+                'api_connected': True,
+                'data_source': 'binance_testnet',
+                'live_trading': BOT_LIVE
             })
                 
         except Exception as e:
-            latest_data['status'] = f'خطأ: {str(e)}'
+            latest_data.update({
+                'status': f'خطأ: {str(e)}',
+                'api_connected': False,
+                'data_source': 'error',
+                'live_trading': False
+            })
             print(f"خطأ في تحديث البيانات: {e}")
         
         time.sleep(30)  # تحديث كل 30 ثانية
