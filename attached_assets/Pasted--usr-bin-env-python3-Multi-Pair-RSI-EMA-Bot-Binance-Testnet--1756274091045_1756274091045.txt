@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""
+Multi-Pair RSI + EMA Bot (Binance Testnet)
+-------------------------------------------
+- الأزواج: BTC/USDT, ETH/USDT, BNB/USDT, SOL/USDT
+- كل زوج: رصيد افتراضي 200 دولار، مخاطرة 2%-3%
+- مؤشرات: RSI + EMA20 & EMA50
+- Take Profit / Stop Loss محسوبة
+- الوضع الافتراضي: BOT_LIVE=false (Testnet)
+"""
+
+import os
+import time
+import math
+import threading
+import pandas as pd
+import numpy as np
+import ccxt
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# -------------------- الإعدادات --------------------
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT"]
+TIMEFRAME = os.getenv("BOT_TIMEFRAME", "15m")
+RSI_PERIOD = int(os.getenv("BOT_RSI_PERIOD", 14))
+RSI_OS = float(os.getenv("RSI_OS", 30))
+RSI_OB = float(os.getenv("RSI_OB", 70))
+ACCOUNT_PER_PAIR = float(os.getenv("ACCOUNT_PER_PAIR", 200))
+RISK_PER_TRADE_USD = float(os.getenv("RISK_PER_TRADE_USD", 4))
+TAKE_PROFIT_R = float(os.getenv("TAKE_PROFIT_R", 1.5))
+BOT_LIVE = os.getenv("BOT_LIVE", "false").lower() == "true"
+
+API_KEY = os.getenv("BINANCE_API_KEY", "")
+API_SECRET = os.getenv("BINANCE_API_SECRET", "")
+
+POLL_SECONDS = int(os.getenv("BOT_POLL_SECONDS", 30))
+
+# -------------------- الدوال --------------------
+def utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+def rsi(series: pd.Series, period: int = 14) -> pd.Series:
+    delta = series.diff()
+    gain = np.where(delta > 0, delta, 0.0)
+    loss = np.where(delta < 0, -delta, 0.0)
+    roll_up = pd.Series(gain).rolling(window=period, min_periods=period).mean()
+    roll_down = pd.Series(loss).rolling(window=period, min_periods=period).mean()
+    rs = roll_up / roll_down
+    rsi = 100 - (100 / (1 + rs))
+    rsi.index = series.index
+    return rsi
+
+def make_exchange():
+    exchange = ccxt.binance({
+        "apiKey": API_KEY,
+        "secret": API_SECRET,
+        "enableRateLimit": True,
+        "options": {"defaultType": "spot"}
+    })
+    exchange.set_sandbox_mode(True)
+    return exchange
+
+def fetch_ohlcv_df(exchange, symbol, timeframe, limit=200):
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+    df = pd.DataFrame(ohlcv, columns=["ts","open","high","low","close","volume"])
+    df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
+    df.set_index("ts", inplace=True)
+    return df
+
+def compute_signals(df):
+    df = df.copy()
+    df["rsi"] = rsi(df["close"], RSI_PERIOD)
+    df["ema20"] = df["close"].ewm(span=20).mean()
+    df["ema50"] = df["close"].ewm(span=50).mean()
+    df["buy_sig"] = (df["rsi"] < RSI_OS) & (df["ema20"] > df["ema50"])
+    df["sell_sig"] = (df["rsi"] > RSI_OB) & (df["ema20"] < df["ema50"])
+    return df
+
+def main():
+    exchange = make_exchange()
+    positions = {s: False for s in SYMBOLS}
+    while True:
+        for symbol in SYMBOLS:
+            try:
+                df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME)
+                df = compute_signals(df).dropna()
+                last = df.iloc[-1]
+                price = float(last["close"])
+                if not positions[symbol]:
+                    if last["buy_sig"]:
+                        print(f"[{utc_now_iso()}] BUY {symbol} @ {price}")
+                        positions[symbol] = True
+                    elif last["sell_sig"]:
+                        print(f"[{utc_now_iso()}] SELL {symbol} @ {price}")
+                else:
+                    if last["rsi"] > 50:
+                        print(f"[{utc_now_iso()}] EXIT {symbol}")
+                        positions[symbol] = False
+            except Exception as e:
+                print(f"[{utc_now_iso()}] ERROR {symbol}: {e}")
+        time.sleep(POLL_SECONDS)
+
+if __name__ == "__main__":
+    main()
