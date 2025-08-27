@@ -51,7 +51,7 @@ RSI_OB = float(get_secret("RSI_OB", "70"))
 ACCOUNT_PER_PAIR = float(get_secret("ACCOUNT_PER_PAIR", "200"))
 RISK_PER_TRADE_USD = float(get_secret("RISK_PER_TRADE_USD", "4"))
 TAKE_PROFIT_R = float(get_secret("TAKE_PROFIT_R", "1.5"))
-BOT_LIVE = get_secret("BOT_LIVE", "false").lower() == "true"
+BOT_LIVE = get_secret("BOT_LIVE", "true").lower() == "true"
 
 # مفاتيح API من Secrets
 API_KEY = get_secret("BINANCE_API_KEY", "")
@@ -110,10 +110,15 @@ def make_exchange():
         "enableRateLimit": True,
         "options": {"defaultType": "spot"}
     })
-    try:
-        exchange.set_sandbox_mode(True)
-    except Exception as e:
-        print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available: {e}")
+    # التداول الحقيقي - بدون sandbox mode
+    if not BOT_LIVE:
+        try:
+            exchange.set_sandbox_mode(True)
+            print(f"[{utc_now_iso()}] تم تفعيل وضع Testnet")
+        except Exception as e:
+            print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available: {e}")
+    else:
+        print(f"[{utc_now_iso()}] ⚡ تم تفعيل التداول الحقيقي - Binance Live API")
     return exchange
 
 def fetch_ohlcv_df(exchange, symbol, timeframe, limit=200):
@@ -302,8 +307,11 @@ def main():
     print(f"Symbols: {SYMBOLS}")
     print(f"Account per pair: ${ACCOUNT_PER_PAIR}, Risk per trade: ${RISK_PER_TRADE_USD}")
     
-    if not BOT_LIVE:
-        print("⚠️  BOT في وضع DRY-RUN. لتفعيل التداول الحقيقي، اضبط BOT_LIVE=true في Secrets")
+    if BOT_LIVE:
+        print("🚨 البوت يعمل في الوضع الحقيقي - سيتم تنفيذ صفقات حقيقية! 🚨")
+        print("⚡ استخدام Binance Live API للتداول الحقيقي")
+    else:
+        print("⚠️  BOT في وضع Testnet - تداول تجريبي فقط")
     
     exchange = make_exchange()
     try:
