@@ -1,0 +1,860 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 لوحة Debug - مراقبة البوت</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+
+        .card {
+            background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: #ff6b35;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #333;
+        }
+
+        .card-icon {
+            font-size: 1.8rem;
+            margin-left: 12px;
+            color: #ff6b35;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .status-success { color: #00ff00; }
+        .status-warning { color: #ffaa00; }
+        .status-error { color: #ff4444; }
+        .status-info { color: #0088ff; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b35, #f7931e);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .signal-card {
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .signal-strong { border-color: #00ff00; background: rgba(0, 255, 0, 0.1); }
+        .signal-medium { border-color: #ffaa00; background: rgba(255, 170, 0, 0.1); }
+        .signal-weak { border-color: #666; background: rgba(102, 102, 102, 0.1); }
+
+        .logs-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #0d0d0d;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 5px;
+            border-left: 4px solid #333;
+        }
+
+        .log-info { border-left-color: #0088ff; }
+        .log-warning { border-left-color: #ffaa00; }
+        .log-error { border-left-color: #ff4444; background: rgba(255, 68, 68, 0.1); }
+
+        .log-timestamp {
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        .log-message {
+            margin-top: 5px;
+            color: #ffffff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #666, #888);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+        }
+
+        .analysis-details {
+            margin-top: 20px;
+        }
+
+        .analysis-symbol {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .symbol-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ff6b35;
+        }
+
+        .recommendation {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .rec-buy { background: rgba(0, 255, 0, 0.2); color: #00ff00; border: 1px solid #00ff00; }
+        .rec-sell { background: rgba(255, 68, 68, 0.2); color: #ff4444; border: 1px solid #ff4444; }
+        .rec-hold { background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; }
+
+        .conditions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .condition {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        .condition-met {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .condition-not-met {
+            background: rgba(68, 68, 68, 0.2);
+            border-color: #666;
+            color: #cccccc;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff6b35;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #cccccc;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* تأثيرات متحركة */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spin {
+            animation: spin 2s linear infinite;
+        }
+
+        /* تحسينات للهواتف */
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* شريط التمرير */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            border-radius: 10px;
+        }
+
+        .auto-refresh {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #333;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="auto-refresh">
+        <i class="fas fa-sync-alt spin"></i>
+        <span id="refresh-status">تحديث تلقائي...</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔍 لوحة Debug - مراقبة شاملة للبوت</h1>
+            <p>مراقبة حية للحالة والأداء والإشارات والأخطاء</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- حالة النظام -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-server card-icon"></i>
+                    <h3 class="card-title">حالة النظام</h3>
+                </div>
+                <div id="system-status">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+
+            <!-- حالة API -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-wifi card-icon"></i>
+                    <h3 class="card-title">حالة API</h3>
+                </div>
+                <div id="api-status">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+
+            <!-- الأداء والموارد -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line card-icon"></i>
+                    <h3 class="card-title">الأداء والموارد</h3>
+                </div>
+                <div id="performance-metrics">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+
+            <!-- الإشارات الحالية -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-bullseye card-icon"></i>
+                    <h3 class="card-title">الإشارات الحالية</h3>
+                </div>
+                <div id="current-signals">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- التحليل المفصل -->
+        <div class="card full-width">
+            <div class="card-header">
+                <i class="fas fa-microscope card-icon"></i>
+                <h3 class="card-title">التحليل المفصل للأزواج</h3>
+            </div>
+            <div id="detailed-analysis">
+                <!-- سيتم ملؤها بـ JavaScript -->
+            </div>
+        </div>
+
+        <!-- السجلات والأخطاء -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-list-alt card-icon"></i>
+                    <h3 class="card-title">السجلات الحديثة</h3>
+                </div>
+                <div class="logs-container" id="recent-logs">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-exclamation-triangle card-icon"></i>
+                    <h3 class="card-title">الأخطاء</h3>
+                </div>
+                <div class="logs-container" id="errors-log">
+                    <!-- سيتم ملؤها بـ JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- أزرار التحكم -->
+        <div class="controls">
+            <button class="btn" onclick="testAPI()">
+                <i class="fas fa-flask"></i>
+                اختبار API
+            </button>
+            <button class="btn" onclick="runAnalysis()">
+                <i class="fas fa-play"></i>
+                تشغيل تحليل
+            </button>
+            <button class="btn btn-secondary" onclick="exportData()">
+                <i class="fas fa-download"></i>
+                تصدير البيانات
+            </button>
+            <button class="btn btn-danger" onclick="clearLogs()">
+                <i class="fas fa-trash"></i>
+                مسح السجلات
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let debugData = {};
+
+        function updateDebugData() {
+            fetch('/api/debug_data')
+                .then(response => response.json())
+                .then(data => {
+                    debugData = data;
+                    updateSystemStatus();
+                    updateAPIStatus();
+                    updatePerformanceMetrics();
+                    updateCurrentSignals();
+                    updateDetailedAnalysis();
+                    updateLogs();
+                    updateRefreshStatus('تحديث ناجح');
+                })
+                .catch(error => {
+                    console.error('خطأ في تحديث البيانات:', error);
+                    updateRefreshStatus('خطأ في التحديث');
+                });
+        }
+
+        function updateSystemStatus() {
+            const container = document.getElementById('system-status');
+            const status = debugData.system_status;
+
+            container.innerHTML = `
+                <div class="status-item">
+                    <span class="status-label">حالة البوت:</span>
+                    <span class="status-value ${status.bot_running ? 'status-success' : 'status-error'}">
+                        ${status.bot_running ? '🟢 يعمل' : '🔴 متوقف'}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">وقت التشغيل:</span>
+                    <span class="status-value">${formatUptime(status.uptime)}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">التكرارات:</span>
+                    <span class="status-value">${status.iterations}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">استدعاءات API:</span>
+                    <span class="status-value status-info">${status.api_calls}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">استدعاءات فاشلة:</span>
+                    <span class="status-value ${status.failed_api_calls > 0 ? 'status-error' : 'status-success'}">
+                        ${status.failed_api_calls}
+                    </span>
+                </div>
+                ${status.last_error ? `
+                <div class="status-item">
+                    <span class="status-label">آخر خطأ:</span>
+                    <span class="status-value status-error">${status.last_error}</span>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function updateAPIStatus() {
+            const container = document.getElementById('api-status');
+            const status = debugData.api_status;
+
+            const testResult = status.connection_test.includes('ناجح') ? 'status-success' : 
+                              status.connection_test.includes('فاشل') ? 'status-error' : 'status-warning';
+
+            container.innerHTML = `
+                <div class="status-item">
+                    <span class="status-label">اختبار الاتصال:</span>
+                    <span class="status-value ${testResult}">${status.connection_test}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">حالة البيانات:</span>
+                    <span class="status-value ${status.market_data_status === 'متوفر' ? 'status-success' : 'status-error'}">
+                        ${status.market_data_status}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">آخر نجاح:</span>
+                    <span class="status-value">${status.last_successful_call ? new Date(status.last_successful_call).toLocaleTimeString() : 'غير متوفر'}</span>
+                </div>
+                ${status.testnet_balance.USDT !== undefined ? `
+                <div class="status-item">
+                    <span class="status-label">رصيد USDT:</span>
+                    <span class="status-value status-info">${status.testnet_balance.USDT.toFixed(2)}</span>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function updatePerformanceMetrics() {
+            const container = document.getElementById('performance-metrics');
+            const perf = debugData.performance;
+
+            container.innerHTML = `
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value">${perf.avg_processing_time.toFixed(1)}ms</div>
+                        <div class="metric-label">متوسط المعالجة</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${perf.network_latency}ms</div>
+                        <div class="metric-label">زمن الاستجابة</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${perf.memory_usage}%</div>
+                        <div class="metric-label">استخدام الذاكرة</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${perf.cpu_usage}%</div>
+                        <div class="metric-label">استخدام المعالج</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <div style="margin-bottom: 5px; color: #cccccc; font-size: 0.9rem;">استخدام الذاكرة:</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${perf.memory_usage}%"></div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <div style="margin-bottom: 5px; color: #cccccc; font-size: 0.9rem;">استخدام المعالج:</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${perf.cpu_usage}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCurrentSignals() {
+            const container = document.getElementById('current-signals');
+            const signals = debugData.trading_signals.current_signals;
+
+            if (!signals || Object.keys(signals).length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">لا توجد إشارات حالية</p>';
+                return;
+            }
+
+            const signalsHTML = Object.entries(signals).map(([symbol, signal]) => {
+                let signalClass = 'signal-weak';
+                if (signal.signal.includes('قوي')) {
+                    signalClass = 'signal-strong';
+                } else if (signal.signal.includes('محتمل')) {
+                    signalClass = 'signal-medium';
+                }
+
+                return `
+                    <div class="signal-card ${signalClass}">
+                        <div style="font-weight: bold; margin-bottom: 8px;">${symbol}</div>
+                        <div style="font-size: 0.9rem; margin-bottom: 5px;">${signal.signal}</div>
+                        <div style="font-size: 0.8rem; color: #ccc;">RSI: ${signal.rsi.toFixed(2)}</div>
+                        <div style="font-size: 0.8rem; color: #ccc;">السعر: ${signal.price.toFixed(4)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `<div class="signal-grid">${signalsHTML}</div>`;
+        }
+
+        function updateDetailedAnalysis() {
+            const container = document.getElementById('detailed-analysis');
+            const analysis = debugData.detailed_analysis;
+
+            if (!analysis || Object.keys(analysis).length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">لا يوجد تحليل متاح</p>';
+                return;
+            }
+
+            const analysisHTML = Object.entries(analysis).map(([symbol, data]) => {
+                if (data.error) {
+                    return `
+                        <div class="analysis-symbol">
+                            <div class="analysis-header">
+                                <span class="symbol-name">${symbol}</span>
+                                <span class="recommendation status-error">خطأ: ${data.error}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let recClass = 'rec-hold';
+                if (data.recommendation.includes('شراء')) {
+                    recClass = 'rec-buy';
+                } else if (data.recommendation.includes('بيع')) {
+                    recClass = 'rec-sell';
+                }
+
+                const conditions = Object.entries(data.conditions).map(([key, met]) => {
+                    const labels = {
+                        'rsi_oversold_met': 'RSI تشبع بيعي',
+                        'ema_bullish_met': 'EMA صاعد',
+                        'extreme_rsi_met': 'RSI منخفض جداً',
+                        'rsi_overbought_met': 'RSI تشبع شرائي',
+                        'ema_bearish_met': 'EMA هابط',
+                        'extreme_high_rsi_met': 'RSI عالي جداً'
+                    };
+
+                    return `
+                        <div class="condition ${met ? 'condition-met' : 'condition-not-met'}">
+                            ${labels[key] || key}: ${met ? '✓' : '✗'}
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="analysis-symbol">
+                        <div class="analysis-header">
+                            <span class="symbol-name">${symbol}</span>
+                            <span class="recommendation ${recClass}">${data.recommendation}</span>
+                        </div>
+                        
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-value">${data.price.toFixed(4)}</div>
+                                <div class="metric-label">السعر</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.rsi.current.toFixed(2)}</div>
+                                <div class="metric-label">RSI</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.ema.ema20.toFixed(4)}</div>
+                                <div class="metric-label">EMA20</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.ema.ema50.toFixed(4)}</div>
+                                <div class="metric-label">EMA50</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.ema.distance.toFixed(2)}%</div>
+                                <div class="metric-label">مسافة EMA</div>
+                            </div>
+                        </div>
+                        
+                        <div class="conditions-grid">
+                            ${conditions}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = analysisHTML;
+        }
+
+        function updateLogs() {
+            // تحديث السجلات
+            const logsContainer = document.getElementById('recent-logs');
+            const logs = debugData.logs.slice(0, 20);
+
+            if (logs.length === 0) {
+                logsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">لا توجد سجلات</p>';
+            } else {
+                const logsHTML = logs.map(log => `
+                    <div class="log-entry log-${log.level.toLowerCase()}">
+                        <div class="log-timestamp">${new Date(log.timestamp).toLocaleTimeString()}</div>
+                        <div class="log-message">[${log.level}] ${log.message}</div>
+                    </div>
+                `).join('');
+                logsContainer.innerHTML = logsHTML;
+            }
+
+            // تحديث الأخطاء
+            const errorsContainer = document.getElementById('errors-log');
+            const errors = debugData.errors.slice(0, 10);
+
+            if (errors.length === 0) {
+                errorsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">لا توجد أخطاء</p>';
+            } else {
+                const errorsHTML = errors.map(error => `
+                    <div class="log-entry log-error">
+                        <div class="log-timestamp">${new Date(error.timestamp).toLocaleTimeString()}</div>
+                        <div class="log-message">${error.message}</div>
+                    </div>
+                `).join('');
+                errorsContainer.innerHTML = errorsHTML;
+            }
+        }
+
+        function updateRefreshStatus(message) {
+            document.getElementById('refresh-status').textContent = message;
+            setTimeout(() => {
+                document.getElementById('refresh-status').textContent = 'تحديث تلقائي...';
+            }, 2000);
+        }
+
+        function formatUptime(seconds) {
+            if (!seconds) return '0 ثانية';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (hours > 0) {
+                return `${hours}س ${minutes}د ${secs}ث`;
+            } else if (minutes > 0) {
+                return `${minutes}د ${secs}ث`;
+            } else {
+                return `${secs}ث`;
+            }
+        }
+
+        // وظائف التحكم
+        function testAPI() {
+            fetch('/api/test_api')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.success ? '✅ اختبار API ناجح' : '❌ فشل اختبار API');
+                    updateDebugData();
+                });
+        }
+
+        function runAnalysis() {
+            fetch('/api/run_analysis')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.success ? '✅ تم تشغيل التحليل' : '❌ فشل التحليل: ' + data.error);
+                    updateDebugData();
+                });
+        }
+
+        function exportData() {
+            fetch('/api/export_data')
+                .then(response => response.json())
+                .then(data => {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `debug_data_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    alert('✅ تم تصدير البيانات');
+                });
+        }
+
+        function clearLogs() {
+            if (confirm('هل تريد مسح جميع السجلات؟')) {
+                fetch('/api/clear_logs')
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('✅ تم مسح السجلات');
+                        updateDebugData();
+                    });
+            }
+        }
+
+        // بدء التحديث التلقائي
+        updateDebugData();
+        setInterval(updateDebugData, 10000); // كل 10 ثواني
+    </script>
+</body>
+</html>
