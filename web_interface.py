@@ -285,17 +285,35 @@ def update_data():
         simulate_trading_data()
         return
 
-    exchange = make_exchange()
+    print(f"✅ مفاتيح API متوفرة - بدء الاتصال بـ Binance Testnet...")
+    
+    try:
+        exchange = make_exchange()
+        # اختبار الاتصال
+        markets = exchange.load_markets()
+        print(f"✅ تم الاتصال بنجاح - {len(markets)} سوق متاح")
+    except Exception as e:
+        print(f"❌ فشل الاتصال بـ API: {e}")
+        print("🔄 التبديل إلى البيانات التجريبية...")
+        simulate_trading_data()
+        return
 
     while True:
         try:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] بدء تحديث البيانات...")
+            
             for symbol in SYMBOLS:
                 try:
                     # جلب البيانات
                     df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
+                    if df is None or df.empty:
+                        print(f"⚠️  لا توجد بيانات لـ {symbol}")
+                        continue
+                        
                     df = compute_signals(df).dropna()
 
                     if df.empty:
+                        print(f"⚠️  لا توجد إشارات محسوبة لـ {symbol}")
                         continue
 
                     last = df.iloc[-1]
