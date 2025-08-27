@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 واجهة ويب متعددة الأزواج - عرض بيانات RSI + EMA والإشارات
@@ -43,7 +42,7 @@ def add_new_trade(symbol, side, entry_price, quantity, stop_loss, take_profit):
     """إضافة صفقة جديدة"""
     global trade_counter
     trade_counter += 1
-    
+
     trade = {
         'id': trade_counter,
         'symbol': symbol,
@@ -58,13 +57,13 @@ def add_new_trade(symbol, side, entry_price, quantity, stop_loss, take_profit):
         'pnl': 0,
         'pnl_percentage': 0
     }
-    
+
     latest_data['trades']['active'].append(trade)
-    
+
     # حفظ في قاعدة البيانات
     save_to_db('trades_data', latest_data['trades'])
     save_to_db('trade_counter', trade_counter)
-    
+
     return trade
 
 def update_active_trades():
@@ -74,7 +73,7 @@ def update_active_trades():
         if symbol in latest_data['pairs']:
             current_price = latest_data['pairs'][symbol]['price']
             trade['current_price'] = current_price
-            
+
             if trade['side'] == 'buy':
                 trade['pnl'] = (current_price - trade['entry_price']) * trade['quantity']
                 trade['pnl_percentage'] = ((current_price - trade['entry_price']) / trade['entry_price']) * 100
@@ -90,44 +89,44 @@ def close_trade(trade_id, exit_price, reason="يدوي"):
             trade['exit_time'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             trade['status'] = 'مغلق'
             trade['close_reason'] = reason
-            
+
             # حساب الربح/الخسارة النهائي
             if trade['side'] == 'buy':
                 final_pnl = (exit_price - trade['entry_price']) * trade['quantity']
             else:
                 final_pnl = (trade['entry_price'] - exit_price) * trade['quantity']
-            
+
             trade['final_pnl'] = final_pnl
             trade['final_pnl_percentage'] = ((final_pnl / (trade['entry_price'] * trade['quantity'])) * 100)
-            
+
             # نقل إلى الصفقات المكتملة
             latest_data['trades']['completed'].append(trade)
             latest_data['trades']['active'].pop(i)
-            
+
             # تحديث الإحصائيات
             update_trade_stats()
-            
+
             # حفظ في قاعدة البيانات
             save_to_db('trades_data', latest_data['trades'])
-            
+
             break
 
 def update_trade_stats():
     """تحديث إحصائيات التداول"""
     completed = latest_data['trades']['completed']
     stats = latest_data['trades']['stats']
-    
+
     if not completed:
         return
-    
+
     stats['total_trades'] = len(completed)
     winning = [t for t in completed if t['final_pnl'] > 0]
     losing = [t for t in completed if t['final_pnl'] < 0]
-    
+
     stats['winning_trades'] = len(winning)
     stats['losing_trades'] = len(losing)
     stats['win_rate'] = (len(winning) / len(completed)) * 100 if completed else 0
-    
+
     stats['total_profit'] = sum(t['final_pnl'] for t in completed)
     stats['avg_profit'] = sum(t['final_pnl'] for t in winning) / len(winning) if winning else 0
     stats['avg_loss'] = sum(t['final_pnl'] for t in losing) / len(losing) if losing else 0
@@ -138,7 +137,7 @@ def update_trade_stats():
 def simulate_trading_data():
     """محاكاة بيانات التداول في حالة عدم وجود API"""
     import random
-    
+
     # أسعار تجريبية للأزواج
     demo_prices = {
         "BTC/USDT": 26500 + random.uniform(-500, 500),
@@ -146,7 +145,7 @@ def simulate_trading_data():
         "BNB/USDT": 310 + random.uniform(-20, 20),
         "SOL/USDT": 22 + random.uniform(-2, 2)
     }
-    
+
     while True:
         try:
             for symbol in SYMBOLS:
@@ -155,16 +154,16 @@ def simulate_trading_data():
                 change = random.uniform(-0.02, 0.02)  # تغيير بنسبة 2%
                 new_price = current_price * (1 + change)
                 demo_prices[symbol] = new_price
-                
+
                 # محاكاة المؤشرات
                 rsi_v = random.uniform(25, 75)
                 ema20 = new_price * random.uniform(0.99, 1.01)
                 ema50 = new_price * random.uniform(0.98, 1.02)
-                
+
                 # تحديد الإشارة
                 signal = 'لا توجد إشارة'
                 signal_color = 'gray'
-                
+
                 if rsi_v < 30 and ema20 > ema50:
                     signal = f'🟢 إشارة شراء (RSI: {rsi_v:.1f})'
                     signal_color = 'green'
@@ -177,7 +176,7 @@ def simulate_trading_data():
                 elif ema20 < ema50:
                     signal = f'📉 اتجاه هابط (EMA20 < EMA50)'
                     signal_color = 'lightcoral'
-                
+
                 # تحديث البيانات
                 latest_data['pairs'][symbol].update({
                     'price': round(new_price, 4),
@@ -188,7 +187,7 @@ def simulate_trading_data():
                     'signal_color': signal_color,
                     'volume': round(random.uniform(1000, 10000), 2)
                 })
-            
+
             # محاكاة رصيد
             latest_data.update({
                 'balance': round(len(SYMBOLS) * ACCOUNT_PER_PAIR, 2),
@@ -198,13 +197,13 @@ def simulate_trading_data():
                 'data_source': 'simulated',
                 'live_trading': False
             })
-            
+
             print(f"[{datetime.now().strftime('%H:%M:%S')}] تم تحديث البيانات التجريبية")
-            
+
         except Exception as e:
             latest_data['status'] = f'خطأ: {str(e)}'
             print(f"خطأ في محاكاة البيانات: {e}")
-        
+
         time.sleep(10)  # تحديث كل 10 ثواني
 
 app = Flask(__name__)
@@ -275,19 +274,19 @@ print(f"الأزواج المتابعة: {SYMBOLS}")
 def update_data():
     """تحديث البيانات في الخلفية"""
     global latest_data
-    
+
     # التحقق من وجود مفاتيح API
     api_key = get_secret("BINANCE_API_KEY", "")
     api_secret = get_secret("BINANCE_API_SECRET", "")
-    
+
     if not api_key or not api_secret or api_key == "your_testnet_api_key_here":
         print("⚠️  مفاتيح API غير متوفرة - يتم استخدام بيانات تجريبية")
         # استخدام بيانات تجريبية
         simulate_trading_data()
         return
-    
+
     exchange = make_exchange()
-    
+
     while True:
         try:
             for symbol in SYMBOLS:
@@ -295,22 +294,22 @@ def update_data():
                     # جلب البيانات
                     df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
                     df = compute_signals(df).dropna()
-                    
+
                     if df.empty:
                         continue
-                        
+
                     last = df.iloc[-1]
-                    
+
                     price = float(last["close"])
                     rsi_v = float(last["rsi"])
                     ema20 = float(last["ema20"])
                     ema50 = float(last["ema50"])
                     volume = float(last["volume"])
-                    
+
                     # تحديد الإشارة
                     signal = 'لا توجد إشارة'
                     signal_color = 'gray'
-                    
+
                     if last["buy_sig"]:
                         signal = f'🟢 إشارة شراء (RSI: {rsi_v:.1f})'
                         signal_color = 'green'
@@ -329,7 +328,7 @@ def update_data():
                     elif ema20 < ema50:
                         signal = f'📉 اتجاه هابط (EMA20 < EMA50)'
                         signal_color = 'lightcoral'
-                    
+
                     # تحديث بيانات الزوج
                     latest_data['pairs'][symbol].update({
                         'price': round(price, 4),
@@ -340,22 +339,22 @@ def update_data():
                         'signal_color': signal_color,
                         'volume': round(volume, 2)
                     })
-                    
+
                 except Exception as e:
                     print(f"خطأ في معالجة {symbol}: {e}")
                     latest_data['pairs'][symbol]['signal'] = f'خطأ: {str(e)[:30]}'
                     latest_data['pairs'][symbol]['signal_color'] = 'red'
-            
+
             # تحديث الصفقات النشطة
             update_active_trades()
-            
+
             # محاولة جلب الرصيد
             try:
                 bal = exchange.fetch_balance()
                 balance = bal.get('USDT', {}).get('free', 0.0)
             except:
                 balance = len(SYMBOLS) * ACCOUNT_PER_PAIR  # رصيد افتراضي
-            
+
             # تحديث البيانات العامة
             latest_data.update({
                 'balance': round(balance, 2),
@@ -365,7 +364,7 @@ def update_data():
                 'data_source': 'binance_testnet',
                 'live_trading': BOT_LIVE
             })
-                
+
         except Exception as e:
             latest_data.update({
                 'status': f'خطأ: {str(e)}',
@@ -374,7 +373,7 @@ def update_data():
                 'live_trading': False
             })
             print(f"خطأ في تحديث البيانات: {e}")
-        
+
         time.sleep(30)  # تحديث كل 30 ثانية
 
 @app.route('/')
@@ -407,14 +406,14 @@ def get_secrets_status():
 def manual_trade():
     try:
         data = request.get_json()
-        
+
         symbol = data['symbol']
         side = data['side']
         entry_price = data['entry_price']
         quantity = data['quantity']
         stop_loss_percent = data['stop_loss_percent']
         take_profit_percent = data['take_profit_percent']
-        
+
         # حساب أسعار وقف الخسارة وجني الأرباح
         if side == 'buy':
             stop_loss = entry_price * (1 - stop_loss_percent / 100)
@@ -422,18 +421,18 @@ def manual_trade():
         else:
             stop_loss = entry_price * (1 + stop_loss_percent / 100)
             take_profit = entry_price * (1 - take_profit_percent / 100)
-        
+
         # إضافة الصفقة الجديدة
         new_trade = add_new_trade(symbol, side, entry_price, quantity, stop_loss, take_profit)
-        
+
         print(f"[{datetime.now().strftime('%H:%M:%S')}] صفقة يدوية جديدة: {side.upper()} {quantity:.6f} {symbol} @ {entry_price:.4f}")
-        
+
         return jsonify({
             'success': True,
             'trade_id': new_trade['id'],
             'message': f'تم فتح صفقة {side} لـ {symbol}'
         })
-        
+
     except Exception as e:
         print(f"خطأ في فتح صفقة يدوية: {e}")
         return jsonify({
@@ -445,7 +444,7 @@ if __name__ == '__main__':
     # بدء تحديث البيانات في thread منفصل
     data_thread = threading.Thread(target=update_data, daemon=True)
     data_thread.start()
-    
+
     # بدء الخادم
     print(f"تشغيل واجهة الويب على http://{WEB_HOST}:{WEB_PORT}")
     print(f"الأزواج المتابعة: {SYMBOLS}")

@@ -20,19 +20,27 @@ import ccxt
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-# تحميل متغيرات البيئة من .env (للتطوير المحلي)
-load_dotenv()
+# تحميل متغيرات البيئة من .env (للتطوير المحلي فقط)
+# load_dotenv() سيتم استدعاؤها في دالة get_secret() حسب الحاجة
 
 def get_secret(key, default=None):
     """
-    جلب المتغيرات من Secrets أولاً، ثم من متغيرات البيئة
+    جلب المتغيرات من متغيرات البيئة (Secrets) أولاً، ثم من ملف .env
     """
-    # محاولة جلب من Secrets في Replit
+    # محاولة جلب من متغيرات البيئة (Secrets/Environment Variables)
     value = os.environ.get(key)
-    if value is None:
-        # محاولة جلب من ملف .env
-        value = os.getenv(key, default)
-    return value
+    if value and value != "your_testnet_api_key_here" and value != "your_testnet_api_secret_here":
+        return value
+    
+    # إذا لم توجد أو كانت قيمة افتراضية، جرب من ملف .env
+    load_dotenv(override=False)  # لا تعيد كتابة متغيرات البيئة الموجودة
+    env_value = os.getenv(key, default)
+    
+    # تأكد من أن القيمة ليست افتراضية
+    if env_value and env_value != "your_testnet_api_key_here" and env_value != "your_testnet_api_secret_here":
+        return env_value
+    
+    return default
 
 # -------------------- الإعدادات --------------------
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT"]
