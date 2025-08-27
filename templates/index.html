@@ -1211,8 +1211,17 @@
                     updateTrades(data.trades);
                 })
                 .catch(error => {
-                    console.error('خطأ في جلب البيانات:', error.message);
-                    updateConnectionStatus({connection_error: true});
+                    console.error('خطأ في جلب البيانات:', error.message || error);
+                    updateConnectionStatus({
+                        connection_error: true,
+                        status: 'خطأ في الاتصال',
+                        api_connected: false
+                    });
+                    
+                    // عرض رسالة خطأ للمستخدم
+                    document.getElementById('balance').textContent = '-- خطأ --';
+                    document.getElementById('total-balance').textContent = '-- خطأ --';
+                    document.getElementById('last-update').textContent = 'خطأ في التحديث';
                 });
         }
 

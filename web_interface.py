@@ -201,7 +201,13 @@ def simulate_trading_data():
             print(f"[{datetime.now().strftime('%H:%M:%S')}] تم تحديث البيانات التجريبية")
 
         except Exception as e:
-            latest_data['status'] = f'خطأ: {str(e)}'
+            error_message = str(e)[:50]
+            latest_data.update({
+                'status': f'خطأ: {error_message}',
+                'connection_error': True,
+                'api_connected': False,
+                'data_source': 'error'
+            })
             print(f"خطأ في محاكاة البيانات: {e}")
 
         time.sleep(10)  # تحديث كل 10 ثواني
@@ -401,13 +407,27 @@ def update_data():
             })
 
         except Exception as e:
+            error_message = str(e)[:50]
             latest_data.update({
-                'status': f'خطأ في الاتصال: {str(e)[:50]}...',
+                'status': f'خطأ في الاتصال: {error_message}...',
                 'api_connected': False,
                 'data_source': 'error',
-                'live_trading': False
+                'live_trading': False,
+                'connection_error': True
             })
             print(f"خطأ في تحديث البيانات: {e}")
+            
+            # تحديث بيانات الأزواج بحالة الخطأ
+            for symbol in SYMBOLS:
+                latest_data['pairs'][symbol].update({
+                    'signal': f'خطأ: {error_message}',
+                    'signal_color': 'red',
+                    'price': latest_data['pairs'][symbol].get('price', 0),
+                    'rsi': 0,
+                    'ema20': 0,
+                    'ema50': 0,
+                    'volume': 0
+                })
             
             # في حالة الخطأ، استخدم البيانات التجريبية
             print("التبديل إلى البيانات التجريبية...")
@@ -422,7 +442,60 @@ def index():
 
 @app.route('/api/data')
 def get_data():
-    return jsonify(latest_data)
+    try:
+        # التأكد من وجود البيانات الأساسية
+        if not latest_data.get('pairs'):
+            latest_data['pairs'] = {}
+            for symbol in SYMBOLS:
+                latest_data['pairs'][symbol] = {
+                    'price': 0,
+                    'rsi': 0,
+                    'ema20': 0,
+                    'ema50': 0,
+                    'signal': 'تحميل...',
+                    'signal_color': 'gray',
+                    'volume': 0
+                }
+        
+        # التأكد من وجود بيانات التداول
+        if not latest_data.get('trades'):
+            latest_data['trades'] = {
+                'active': [],
+                'completed': [],
+                'stats': {
+                    'total_trades': 0,
+                    'winning_trades': 0,
+                    'losing_trades': 0,
+                    'total_profit': 0,
+                    'win_rate': 0,
+                    'avg_profit': 0,
+                    'avg_loss': 0,
+                    'max_profit': 0,
+                    'max_loss': 0,
+                    'total_volume': 0
+                }
+            }
+        
+        # التأكد من وجود البيانات الأساسية الأخرى
+        if not latest_data.get('balance'):
+            latest_data['balance'] = 0
+        if not latest_data.get('timestamp'):
+            latest_data['timestamp'] = datetime.now(timezone.utc).strftime('%H:%M:%S')
+        if not latest_data.get('status'):
+            latest_data['status'] = 'تحميل...'
+        
+        return jsonify(latest_data)
+    except Exception as e:
+        print(f"خطأ في API data: {e}")
+        return jsonify({
+            'error': str(e),
+            'pairs': {symbol: {'price': 0, 'rsi': 0, 'signal': 'خطأ'} for symbol in SYMBOLS},
+            'balance': 0,
+            'status': 'خطأ في النظام',
+            'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
+            'connection_error': True,
+            'trades': {'active': [], 'completed': [], 'stats': {}}
+        }), 500
 
 @app.route('/api/trades')
 def get_trades():
