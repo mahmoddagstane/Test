@@ -1139,7 +1139,12 @@
 
         function updateData() {
             fetch('/api/data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     // حفظ البيانات للاستخدام في النوافذ المنبثقة
                     latest_data = data;
@@ -1206,7 +1211,7 @@
                     updateTrades(data.trades);
                 })
                 .catch(error => {
-                    console.error('خطأ في جلب البيانات:', error);
+                    console.error('خطأ في جلب البيانات:', error.message);
                     updateConnectionStatus({connection_error: true});
                 });
         }
@@ -1379,6 +1384,45 @@
             }
         }
 
+        function loadSecretsStatus() {
+            fetch('/api/secrets_status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    updateSecretsStatus(data);
+                })
+                .catch(error => {
+                    console.error('خطأ في جلب حالة المفاتيح:', error.message);
+                    // عرض حالة افتراضية في حالة الخطأ
+                    updateSecretsStatus({
+                        api_key_exists: false,
+                        api_secret_exists: false,
+                        bot_live: false,
+                        error: error.message
+                    });
+                });
+        }
+
+        function updateSecretsStatus(data) {
+            // هذه الدالة ستقوم بتحديث عناصر HTML لعرض حالة المفاتيح
+            // مثال:
+            const apiKeyStatus = document.getElementById('api-key-status'); // افترض وجود هذا العنصر
+            const apiSecretStatus = document.getElementById('api-secret-status'); // افترض وجود هذا العنصر
+            const botStatus = document.getElementById('bot-status'); // افترض وجود هذا العنصر
+            const errorMessage = document.getElementById('error-message'); // افترض وجود هذا العنصر
+
+            if (apiKeyStatus) apiKeyStatus.textContent = data.api_key_exists ? 'موجود' : 'غير موجود';
+            if (apiSecretStatus) apiSecretStatus.textContent = data.api_secret_exists ? 'موجود' : 'غير موجود';
+            if (botStatus) botStatus.textContent = data.bot_live ? 'يعمل' : 'متوقف';
+            if (errorMessage) errorMessage.textContent = data.error || '';
+
+            // يمكنك إضافة المزيد من التحديثات هنا بناءً على بيانات `data`
+        }
+
 
         // تهيئة الصفحة
         initializePairs();
@@ -1529,6 +1573,7 @@
         // تحديث البيانات كل 5 ثواني
         updateData();
         setInterval(updateData, 5000);
+        loadSecretsStatus(); // استدعاء الدالة للتحقق من حالة المفاتيح عند تحميل الصفحة
     </script>
 </body>
 </html>

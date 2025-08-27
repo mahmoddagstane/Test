@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import os
 import requests
-from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOLS, TIMEFRAME, RSI_PERIOD, RSI_OS, RSI_OB, BOT_LIVE, ACCOUNT_PER_PAIR, get_secret
+from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOLS, TIMEFRAME, RSI_PERIOD, RSI_OS, RSI_OB, BOT_LIVE, ACCOUNT_PER_PAIR, RISK_PER_TRADE_USD, get_secret
 
 # ReplDB للحفظ الثابت
 REPLIT_DB_URL = get_secret('REPLIT_DB_URL', os.environ.get('REPLIT_DB_URL'))
