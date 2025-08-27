@@ -17,7 +17,7 @@ REPLIT_DB_URL = get_secret('REPLIT_DB_URL', os.environ.get('REPLIT_DB_URL'))
 
 # إعدادات الخادم
 WEB_HOST = get_secret("WEB_HOST", "0.0.0.0")
-WEB_PORT = int(get_secret("WEB_PORT", "8080")) # تغيير المنفذ إلى 8080
+WEB_PORT = int(get_secret("WEB_PORT", "5000"))
 
 def save_to_db(key, data):
     """حفظ البيانات في ReplDB"""

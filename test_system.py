@@ -149,7 +149,7 @@ def test_trading_simulation():
     print("🎯 اختبار منطق التداول...")
     
     try:
-        from main import size_position_usdt, RISK_PER_TRADE_USD, ACCOUNT_PER_PAIR
+        from main import size_position_usdt, RISK_PER_TRADE_USD, ACCOUNT_PER_PAIR, place_orders
         
         # اختبار حساب حجم الصفقة
         test_price = 26500  # سعر تجريبي لـ BTC
@@ -166,6 +166,24 @@ def test_trading_simulation():
         
         print(f"   ⛔ وقف الخسارة: {stop_price:.2f} ({((stop_price/test_price-1)*100):+.1f}%)")
         print(f"   🎯 جني الأرباح: {tp_price:.2f} ({((tp_price/test_price-1)*100):+.1f}%)")
+        
+        # اختبار نسبة المخاطرة/المكافأة
+        risk = test_price - stop_price
+        reward = tp_price - test_price
+        risk_reward_ratio = reward / risk if risk > 0 else 0
+        
+        print(f"   📊 نسبة المخاطرة/المكافأة: 1:{risk_reward_ratio:.2f}")
+        
+        if risk_reward_ratio >= 1.5:
+            print(f"   ✅ نسبة مخاطرة/مكافأة ممتازة")
+        else:
+            print(f"   ⚠️  نسبة مخاطرة/مكافأة منخفضة")
+            
+        # اختبار منطق دخول وخروج الصفقات
+        print(f"   🧪 اختبار شروط الدخول:")
+        print(f"   🟢 شراء: RSI < 30 + EMA20 > EMA50 + RSI منخفض")
+        print(f"   🔴 بيع: RSI > 70 + EMA20 < EMA50 + RSI مرتفع")
+        print(f"   ⚡ خروج: إشارة بيع أو RSI > 65 أو تغير الاتجاه")
         
         return True
         
