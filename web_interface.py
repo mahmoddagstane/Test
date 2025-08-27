@@ -409,7 +409,7 @@ def test_api_endpoint():
         api_key = get_secret("BINANCE_API_KEY", "")
         if not api_key or api_key == "your_testnet_api_key_here":
             return jsonify({'success': False, 'error': 'مفاتيح API غير متوفرة'})
-        
+
         exchange = make_exchange()
         markets = exchange.load_markets()
         return jsonify({'success': True, 'message': f'تم العثور على {len(markets)} سوق'})
@@ -457,7 +457,7 @@ def get_debug_data():
         # حساب وقت التشغيل
         start_time = datetime.now(timezone.utc) - timedelta(seconds=300)  # افتراضي 5 دقائق
         uptime_seconds = 300
-        
+
         debug_data = {
             'system_status': {
                 'bot_running': latest_data.get('api_connected', False),
@@ -502,7 +502,7 @@ def get_debug_data():
             'errors': [],
             'detailed_analysis': {}
         }
-        
+
         # إضافة الإشارات الحالية
         for symbol, pair_data in latest_data.get('pairs', {}).items():
             if pair_data.get('signal') and pair_data.get('signal') != 'لا توجد إشارة':
@@ -512,7 +512,7 @@ def get_debug_data():
                     'price': pair_data.get('price', 0),
                     'timestamp': datetime.now(timezone.utc).isoformat()
                 }
-        
+
         # إضافة التحليل المفصل
         for symbol, pair_data in latest_data.get('pairs', {}).items():
             if pair_data.get('price', 0) > 0:
@@ -542,62 +542,18 @@ def get_debug_data():
                     },
                     'recommendation': pair_data.get('signal', 'انتظار')
                 }
-        
+
         # إضافة أخطاء إذا كانت موجودة
         if not latest_data.get('api_connected', False):
             debug_data['errors'].append({
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'message': latest_data.get('status', 'خطأ غير معروف')
             })
-        
+
         return jsonify(debug_data)
-        
+
     except Exception as e:
         return jsonify({'error': f'خطأ في جلب بيانات Debug: {str(e)}'})
-
-@app.route('/api/test_api')
-def test_api_endpoint():
-    """اختبار الاتصال بـ API"""
-    try:
-        api_key = get_secret("BINANCE_API_KEY", "")
-        if not api_key or api_key == "your_testnet_api_key_here":
-            return jsonify({'success': False, 'error': 'مفاتيح API غير متوفرة'})
-        
-        exchange = make_exchange()
-        markets = exchange.load_markets()
-        return jsonify({'success': True, 'message': f'تم العثور على {len(markets)} سوق'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/run_analysis')
-def run_analysis():
-    """تشغيل تحليل فوري"""
-    try:
-        # هذا سيحفز تحديث فوري للبيانات
-        return jsonify({'success': True, 'message': 'تم تشغيل التحليل - ستظهر النتائج في التحديث القادم'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/clear_logs')
-def clear_logs():
-    """مسح السجلات"""
-    return jsonify({'success': True, 'message': 'تم مسح السجلات'})
-
-@app.route('/api/export_data')
-def export_debug_data():
-    """تصدير بيانات Debug"""
-    export_data = {
-        'export_time': datetime.now(timezone.utc).isoformat(),
-        'latest_data': latest_data,
-        'settings': {
-            'symbols': SYMBOLS,
-            'timeframe': TIMEFRAME,
-            'rsi_period': RSI_PERIOD,
-            'bot_live': BOT_LIVE,
-            'account_per_pair': ACCOUNT_PER_PAIR
-        }
-    }
-    return jsonify(export_data)
 
 @app.route('/api/manual_trade', methods=['POST'])
 def manual_trade():
