@@ -17,7 +17,7 @@ REPLIT_DB_URL = get_secret('REPLIT_DB_URL', os.environ.get('REPLIT_DB_URL'))
 
 # إعدادات الخادم
 WEB_HOST = get_secret("WEB_HOST", "0.0.0.0")
-WEB_PORT = int(get_secret("WEB_PORT", "5000"))
+WEB_PORT = int(get_secret("WEB_PORT", "8080")) # تغيير المنفذ إلى 8080
 
 def save_to_db(key, data):
     """حفظ البيانات في ReplDB"""
@@ -292,7 +292,7 @@ def update_data():
         return
 
     print(f"✅ مفاتيح API متوفرة - بدء الاتصال بـ Binance Testnet...")
-    
+
     try:
         exchange = make_exchange()
         # اختبار الاتصال
@@ -307,7 +307,7 @@ def update_data():
     while True:
         try:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] بدء تحديث البيانات...")
-            
+
             for symbol in SYMBOLS:
                 try:
                     # جلب البيانات
@@ -317,19 +317,19 @@ def update_data():
                         latest_data['pairs'][symbol]['signal'] = 'لا توجد بيانات'
                         latest_data['pairs'][symbol]['signal_color'] = 'orange'
                         continue
-                        
+
                     df = compute_signals(df)
-                    
+
                     # التأكد من وجود البيانات المطلوبة
                     if df.empty or 'rsi' not in df.columns:
                         print(f"⚠️  لا توجد إشارات محسوبة لـ {symbol}")
                         latest_data['pairs'][symbol]['signal'] = 'خطأ في الحساب'
                         latest_data['pairs'][symbol]['signal_color'] = 'red'
                         continue
-                    
+
                     # إزالة الصفوف الفارغة فقط بعد التحقق
                     df = df.dropna()
-                    
+
                     if df.empty:
                         print(f"⚠️  لا توجد بيانات صالحة لـ {symbol}")
                         latest_data['pairs'][symbol]['signal'] = 'بيانات غير كافية'
@@ -416,7 +416,7 @@ def update_data():
                 'connection_error': True
             })
             print(f"خطأ في تحديث البيانات: {e}")
-            
+
             # تحديث بيانات الأزواج بحالة الخطأ
             for symbol in SYMBOLS:
                 latest_data['pairs'][symbol].update({
@@ -428,7 +428,7 @@ def update_data():
                     'ema50': 0,
                     'volume': 0
                 })
-            
+
             # في حالة الخطأ، استخدم البيانات التجريبية
             print("التبديل إلى البيانات التجريبية...")
             simulate_trading_data()
@@ -456,7 +456,7 @@ def get_data():
                     'signal_color': 'gray',
                     'volume': 0
                 }
-        
+
         # التأكد من وجود بيانات التداول
         if not latest_data.get('trades'):
             latest_data['trades'] = {
@@ -475,7 +475,7 @@ def get_data():
                     'total_volume': 0
                 }
             }
-        
+
         # التأكد من وجود البيانات الأساسية الأخرى
         if not latest_data.get('balance'):
             latest_data['balance'] = 0
@@ -483,7 +483,7 @@ def get_data():
             latest_data['timestamp'] = datetime.now(timezone.utc).strftime('%H:%M:%S')
         if not latest_data.get('status'):
             latest_data['status'] = 'تحميل...'
-        
+
         return jsonify(latest_data)
     except Exception as e:
         print(f"خطأ في API data: {e}")

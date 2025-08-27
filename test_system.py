@@ -110,7 +110,7 @@ def test_web_interface():
     
     try:
         # اختبار الصفحة الرئيسية
-        response = requests.get("http://127.0.0.1:5000", timeout=5)
+        response = requests.get("http://127.0.0.1:8080", timeout=5)
         if response.status_code == 200:
             print("   ✅ الصفحة الرئيسية تعمل")
         else:
@@ -118,7 +118,7 @@ def test_web_interface():
             return False
             
         # اختبار API البيانات
-        response = requests.get("http://127.0.0.1:5000/api/data", timeout=5)
+        response = requests.get("http://127.0.0.1:8080/api/data", timeout=5)
         if response.status_code == 200:
             data = response.json()
             print("   ✅ API البيانات يعمل")
@@ -130,7 +130,7 @@ def test_web_interface():
             return False
             
         # اختبار حالة المفاتيح
-        response = requests.get("http://127.0.0.1:5000/api/secrets_status", timeout=5)
+        response = requests.get("http://127.0.0.1:8080/api/secrets_status", timeout=5)
         if response.status_code == 200:
             status = response.json()
             print("   ✅ API حالة المفاتيح يعمل")

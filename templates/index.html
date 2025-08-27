@@ -1138,7 +1138,9 @@
         }
 
         function updateData() {
-            fetch('/api/data')
+            // التأكد من استخدام المنفذ الصحيح
+            const apiUrl = window.location.origin + '/api/data';
+            fetch(apiUrl)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
@@ -1408,7 +1410,8 @@
         }
 
         function loadSecretsStatus() {
-            fetch('/api/secrets_status')
+            const apiUrl = window.location.origin + '/api/secrets_status';
+            fetch(apiUrl)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);

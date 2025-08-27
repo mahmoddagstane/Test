@@ -364,6 +364,14 @@ def main():
             break
         except Exception as e:
             print(f"[{utc_now_iso()}] MAIN LOOP ERROR: {e}")
+            print(f"[{utc_now_iso()}] Retrying in {POLL_SECONDS} seconds...")
+            # إضافة معلومات تشخيصية إضافية
+            if "timeout" in str(e).lower():
+                print(f"[{utc_now_iso()}] Network timeout detected - checking connection...")
+            elif "rate limit" in str(e).lower():
+                print(f"[{utc_now_iso()}] Rate limit hit - extending delay...")
+                time.sleep(POLL_SECONDS * 2)  # مضاعفة التأخير للـ rate limits
+                continue
             time.sleep(POLL_SECONDS)
 
 if __name__ == "__main__":
