@@ -36,6 +36,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "python3 web_interface.py"
 
+[[workflows.workflow]]
+name = "مراقبة البوت"
+author = 40313348
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 main.py"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

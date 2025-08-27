@@ -198,7 +198,23 @@ def process_symbol(exchange, symbol, positions, open_orders):
         ema20 = float(last["ema20"])
         ema50 = float(last["ema50"])
         
-        print(f"[{utc_now_iso()}] {symbol}: Price={price:.4f}, RSI={rsi_v:.2f}, EMA20={ema20:.4f}, EMA50={ema50:.4f}")
+        # عرض تفاصيل مراقبة أكثر وضوحاً
+        trend = "صاعد 📈" if ema20 > ema50 else "هابط 📉"
+        rsi_status = ""
+        if rsi_v < 30:
+            rsi_status = "تشبع بيعي 🟢"
+        elif rsi_v > 70:
+            rsi_status = "تشبع شرائي 🔴"
+        elif rsi_v < 45:
+            rsi_status = "قريب من التشبع البيعي 🟡"
+        elif rsi_v > 55:
+            rsi_status = "قريب من التشبع الشرائي 🟡"
+        else:
+            rsi_status = "متوسط ⚪"
+        
+        print(f"[{utc_now_iso()}] {symbol}:")
+        print(f"   💰 السعر: {price:.4f} | 📊 RSI: {rsi_v:.2f} ({rsi_status})")
+        print(f"   📈 EMA20: {ema20:.4f} | 📉 EMA50: {ema50:.4f} | الاتجاه: {trend}")
         
         # فحص أوامر وقف الخسارة للصفقات المفتوحة
         if symbol in open_orders and open_orders[symbol]:
@@ -224,7 +240,10 @@ def process_symbol(exchange, symbol, positions, open_orders):
                 stop_price = price * 0.98  # 2% stop loss
                 tp_price = price + TAKE_PROFIT_R * (price - stop_price)
                 
-                print(f"[{utc_now_iso()}] 🟢 BUY SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f})")
+                print(f"[{utc_now_iso()}] 🟢 إشارة شراء قوية لـ {symbol}:")
+                print(f"   📍 السعر: {price:.4f} | RSI: {rsi_v:.2f} | EMA20 > EMA50: {ema20 > ema50}")
+                print(f"   💵 الكمية: {qty:.6f} | المخاطرة: ${RISK_PER_TRADE_USD}")
+                print(f"   🎯 هدف الربح: {tp_price:.4f} | ⛔ وقف الخسارة: {stop_price:.4f}")
                 results = place_orders(exchange, symbol, "buy", entry_price, stop_price, tp_price, qty)
                 
                 if results["entry"]:
@@ -234,29 +253,46 @@ def process_symbol(exchange, symbol, positions, open_orders):
                 
         else:
             # شروط الإغلاق - مراجعة أكثر مرونة
-            if rsi_v > 60 or last["sell_sig"] or (rsi_v > 55 and ema20 < ema50):
+            close_reason = ""
+            should_close = False
+            
+            if rsi_v > 60:
+                close_reason = f"RSI عالي ({rsi_v:.2f})"
+                should_close = True
+            elif last["sell_sig"]:
+                close_reason = "إشارة بيع"
+                should_close = True
+            elif rsi_v > 55 and ema20 < ema50:
+                close_reason = f"RSI متوسط ({rsi_v:.2f}) + اتجاه هابط"
+                should_close = True
+            
+            if should_close:
                 try:
+                    print(f"[{utc_now_iso()}] 🔴 إشارة إغلاق لـ {symbol}: {close_reason}")
+                    
                     if BOT_LIVE and symbol in open_orders and open_orders[symbol]:
                         # إلغاء أمر جني الأرباح المعلق
                         tp_order = open_orders[symbol].get("tp")
                         if tp_order:
                             try:
                                 exchange.cancel_order(tp_order["id"], symbol)
+                                print(f"[{utc_now_iso()}] ✅ تم إلغاء أمر جني الأرباح")
                             except:
                                 pass
                         
                         # تنفيذ بيع بسعر السوق
                         qty = open_orders[symbol]["entry"]["amount"]
-                        exchange.create_market_order(symbol, "sell", qty)
-                        print(f"[{utc_now_iso()}] 💰 MANUAL EXIT: {symbol} @ {price:.4f}")
+                        result = exchange.create_market_order(symbol, "sell", qty)
+                        actual_exit = float(result["average"]) if result["average"] else price
+                        print(f"[{utc_now_iso()}] 💰 تم إغلاق الصفقة: {symbol} @ {actual_exit:.4f}")
                     else:
-                        print(f"[DRY-RUN] Would close position for {symbol} @ {price:.4f}")
+                        print(f"[DRY-RUN] سيتم إغلاق الصفقة لـ {symbol} @ {price:.4f} | السبب: {close_reason}")
                     
                     positions[symbol] = False
                     open_orders[symbol] = None
                     
                 except Exception as e:
-                    print(f"[{utc_now_iso()}] Manual exit failed: {e}")
+                    print(f"[{utc_now_iso()}] فشل إغلاق الصفقة: {e}")
                 
     except Exception as e:
         print(f"[{utc_now_iso()}] ERROR processing {symbol}: {e}")
@@ -303,11 +339,22 @@ def main():
                 except Exception as e:
                     print(f"[{utc_now_iso()}] fetch_balance() failed: {e}")
             
-            # إحصائيات الصفقات
+            # إحصائيات الصفقات وملخص المراقبة
             active_count = sum(1 for active in positions.values() if active)
             active_symbols = [s for s, active in positions.items() if active]
             
-            print(f"📊 Active positions ({active_count}/4): {active_symbols}")
+            print(f"\n📊 ملخص المراقبة:")
+            print(f"   🔍 الأزواج المراقبة: {len(SYMBOLS)} أزواج")
+            print(f"   📈 الصفقات النشطة: {active_count}/4 - {active_symbols}")
+            print(f"   ⏰ دورة المراقبة كل {POLL_SECONDS} ثانية")
+            print(f"   💼 رصيد كل زوج: ${ACCOUNT_PER_PAIR} | مخاطرة: ${RISK_PER_TRADE_USD}")
+            
+            # عرض حالة كل زوج
+            if iter_count % 5 == 0:  # كل 5 دورات
+                print(f"\n🎯 ملخص شروط الدخول:")
+                print(f"   📉 شراء: RSI < 35 + (EMA20 > EMA50 أو RSI < 25)")
+                print(f"   📈 بيع: RSI > 65 + (EMA20 < EMA50 أو RSI > 75)")
+                print(f"   🔄 وضع التداول: {'مباشر' if BOT_LIVE else 'تجريبي'}")
             
             iter_count += 1
             time.sleep(POLL_SECONDS)
