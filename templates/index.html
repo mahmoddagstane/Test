@@ -74,16 +74,26 @@
         
         .pairs-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
-            padding: 30px 20px;
+            padding: 30px 15px;
+            width: 100%;
+            box-sizing: border-box;
         }
         
         @media (max-width: 768px) {
             .pairs-grid {
                 grid-template-columns: 1fr;
-                padding: 20px 15px;
+                padding: 15px 10px;
                 gap: 15px;
+                margin: 0;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .pairs-grid {
+                padding: 10px 5px;
+                gap: 10px;
             }
         }
         
@@ -96,6 +106,9 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
         }
         
         .pair-card::before {
@@ -499,32 +512,56 @@
         /* تحسينات إضافية للهواتف */
         @media (max-width: 480px) {
             body {
-                padding: 5px;
+                padding: 2px;
+                margin: 0;
             }
             
             .container {
                 border-radius: 15px;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
             }
             
             .header {
-                padding: 20px 15px;
+                padding: 15px 10px;
+                border-radius: 15px 15px 0 0;
             }
             
             .pair-card {
-                padding: 20px 15px;
+                padding: 15px 12px;
+                margin: 0;
+                border-radius: 15px;
             }
             
             .balance-section {
-                padding: 25px 20px;
+                padding: 20px 15px;
+                margin: 15px 0;
             }
             
             .tabs {
-                padding: 0 5px;
+                padding: 0;
+                gap: 2px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             .tab {
-                padding: 12px 18px;
-                min-width: 100px;
+                padding: 10px 15px;
+                min-width: 90px;
+                font-size: 0.85rem;
+                flex-shrink: 0;
+            }
+            
+            .pair-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .price-value {
+                align-self: flex-end;
+                padding: 6px 12px;
             }
         }
         

@@ -131,6 +131,75 @@ def update_trade_stats():
     stats['max_loss'] = min(t['final_pnl'] for t in completed) if completed else 0
     stats['total_volume'] = sum(t['entry_price'] * t['quantity'] for t in completed)
 
+def simulate_trading_data():
+    """محاكاة بيانات التداول في حالة عدم وجود API"""
+    import random
+    
+    # أسعار تجريبية للأزواج
+    demo_prices = {
+        "BTC/USDT": 26500 + random.uniform(-500, 500),
+        "ETH/USDT": 1650 + random.uniform(-50, 50),
+        "BNB/USDT": 310 + random.uniform(-20, 20),
+        "SOL/USDT": 22 + random.uniform(-2, 2)
+    }
+    
+    while True:
+        try:
+            for symbol in SYMBOLS:
+                # محاكاة تغيرات السعر
+                current_price = demo_prices.get(symbol, 100)
+                change = random.uniform(-0.02, 0.02)  # تغيير بنسبة 2%
+                new_price = current_price * (1 + change)
+                demo_prices[symbol] = new_price
+                
+                # محاكاة المؤشرات
+                rsi_v = random.uniform(25, 75)
+                ema20 = new_price * random.uniform(0.99, 1.01)
+                ema50 = new_price * random.uniform(0.98, 1.02)
+                
+                # تحديد الإشارة
+                signal = 'لا توجد إشارة'
+                signal_color = 'gray'
+                
+                if rsi_v < 30 and ema20 > ema50:
+                    signal = f'🟢 إشارة شراء (RSI: {rsi_v:.1f})'
+                    signal_color = 'green'
+                elif rsi_v > 70 and ema20 < ema50:
+                    signal = f'🔴 إشارة بيع (RSI: {rsi_v:.1f})'
+                    signal_color = 'red'
+                elif ema20 > ema50:
+                    signal = f'📈 اتجاه صاعد (EMA20 > EMA50)'
+                    signal_color = 'lightgreen'
+                elif ema20 < ema50:
+                    signal = f'📉 اتجاه هابط (EMA20 < EMA50)'
+                    signal_color = 'lightcoral'
+                
+                # تحديث البيانات
+                latest_data['pairs'][symbol].update({
+                    'price': round(new_price, 4),
+                    'rsi': round(rsi_v, 2),
+                    'ema20': round(ema20, 4),
+                    'ema50': round(ema50, 4),
+                    'signal': signal,
+                    'signal_color': signal_color,
+                    'volume': round(random.uniform(1000, 10000), 2)
+                })
+            
+            # محاكاة رصيد
+            latest_data.update({
+                'balance': round(len(SYMBOLS) * ACCOUNT_PER_PAIR, 2),
+                'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
+                'status': '🔄 وضع تجريبي (بدون API)'
+            })
+            
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] تم تحديث البيانات التجريبية")
+            
+        except Exception as e:
+            latest_data['status'] = f'خطأ: {str(e)}'
+            print(f"خطأ في محاكاة البيانات: {e}")
+        
+        time.sleep(10)  # تحديث كل 10 ثواني
+
 app = Flask(__name__)
 
 # تحميل البيانات المحفوظة
@@ -181,6 +250,17 @@ print(f"الأزواج المتابعة: {SYMBOLS}")
 def update_data():
     """تحديث البيانات في الخلفية"""
     global latest_data
+    
+    # التحقق من وجود مفاتيح API
+    api_key = os.getenv("BINANCE_API_KEY", "")
+    api_secret = os.getenv("BINANCE_API_SECRET", "")
+    
+    if not api_key or not api_secret or api_key == "your_testnet_api_key_here":
+        print("⚠️  مفاتيح API غير متوفرة - يتم استخدام بيانات تجريبية")
+        # استخدام بيانات تجريبية
+        simulate_trading_data()
+        return
+    
     exchange = make_exchange()
     
     while True:
