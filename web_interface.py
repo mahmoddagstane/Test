@@ -291,7 +291,7 @@ def update_data():
         simulate_trading_data()
         return
 
-    api_type = "Live API" if BOT_LIVE else "Testnet"
+    api_type = "Testnet (وضع نشط)" if BOT_LIVE else "Testnet (مراقبة)"
     print(f"✅ مفاتيح API متوفرة - بدء الاتصال بـ Binance {api_type}...")
 
     try:
@@ -398,11 +398,11 @@ def update_data():
                 latest_data['api_connected'] = False
 
             # تحديث البيانات العامة
-            api_source = 'binance_live' if BOT_LIVE else 'binance_testnet'
+            api_source = 'binance_testnet_active' if BOT_LIVE else 'binance_testnet'
             latest_data.update({
                 'balance': round(balance, 2),
                 'timestamp': datetime.now(timezone.utc).strftime('%H:%M:%S'),
-                'status': 'متصل - تداول حقيقي' if BOT_LIVE else 'متصل - تجريبي',
+                'status': 'متصل - تداول نشط (Testnet)' if BOT_LIVE else 'متصل - مراقبة',
                 'api_connected': True,
                 'data_source': api_source,
                 'live_trading': BOT_LIVE

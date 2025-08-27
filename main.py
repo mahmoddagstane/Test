@@ -108,17 +108,18 @@ def make_exchange():
         "apiKey": API_KEY,
         "secret": API_SECRET,
         "enableRateLimit": True,
-        "options": {"defaultType": "spot"}
+        "options": {"defaultType": "spot"},
+        "sandbox": True  # استخدام Testnet دائماً لتجنب القيود الجغرافية
     })
-    # التداول الحقيقي - بدون sandbox mode
-    if not BOT_LIVE:
-        try:
-            exchange.set_sandbox_mode(True)
+    try:
+        exchange.set_sandbox_mode(True)
+        if BOT_LIVE:
+            print(f"[{utc_now_iso()}] ⚡ تم تفعيل التداول الحقيقي - Binance Testnet API")
+            print(f"[{utc_now_iso()}] 📍 استخدام Testnet لتجنب القيود الجغرافية")
+        else:
             print(f"[{utc_now_iso()}] تم تفعيل وضع Testnet")
-        except Exception as e:
-            print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available: {e}")
-    else:
-        print(f"[{utc_now_iso()}] ⚡ تم تفعيل التداول الحقيقي - Binance Live API")
+    except Exception as e:
+        print(f"[{utc_now_iso()}] Warning: set_sandbox_mode not available: {e}")
     return exchange
 
 def fetch_ohlcv_df(exchange, symbol, timeframe, limit=200):
@@ -308,10 +309,11 @@ def main():
     print(f"Account per pair: ${ACCOUNT_PER_PAIR}, Risk per trade: ${RISK_PER_TRADE_USD}")
     
     if BOT_LIVE:
-        print("🚨 البوت يعمل في الوضع الحقيقي - سيتم تنفيذ صفقات حقيقية! 🚨")
-        print("⚡ استخدام Binance Live API للتداول الحقيقي")
+        print("🚨 البوت يعمل في الوضع النشط - سيتم تنفيذ صفقات Testnet! 🚨")
+        print("⚡ استخدام Binance Testnet API للتداول النشط")
+        print("📍 ملاحظة: استخدام Testnet لتجنب القيود الجغرافية")
     else:
-        print("⚠️  BOT في وضع Testnet - تداول تجريبي فقط")
+        print("⚠️  BOT في وضع المراقبة - تداول تجريبي فقط")
     
     exchange = make_exchange()
     try:
