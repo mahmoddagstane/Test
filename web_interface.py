@@ -4,7 +4,7 @@
 واجهة ويب متعددة الأزواج - عرض بيانات RSI + EMA والإشارات
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import threading
 import json
 import time
@@ -376,6 +376,44 @@ def close_trade_api(trade_id):
             close_trade(trade_id, current_price, "إغلاق يدوي")
             break
     return jsonify({'success': True})
+
+@app.route('/api/manual_trade', methods=['POST'])
+def manual_trade():
+    try:
+        data = request.get_json()
+        
+        symbol = data['symbol']
+        side = data['side']
+        entry_price = data['entry_price']
+        quantity = data['quantity']
+        stop_loss_percent = data['stop_loss_percent']
+        take_profit_percent = data['take_profit_percent']
+        
+        # حساب أسعار وقف الخسارة وجني الأرباح
+        if side == 'buy':
+            stop_loss = entry_price * (1 - stop_loss_percent / 100)
+            take_profit = entry_price * (1 + take_profit_percent / 100)
+        else:
+            stop_loss = entry_price * (1 + stop_loss_percent / 100)
+            take_profit = entry_price * (1 - take_profit_percent / 100)
+        
+        # إضافة الصفقة الجديدة
+        new_trade = add_new_trade(symbol, side, entry_price, quantity, stop_loss, take_profit)
+        
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] صفقة يدوية جديدة: {side.upper()} {quantity:.6f} {symbol} @ {entry_price:.4f}")
+        
+        return jsonify({
+            'success': True,
+            'trade_id': new_trade['id'],
+            'message': f'تم فتح صفقة {side} لـ {symbol}'
+        })
+        
+    except Exception as e:
+        print(f"خطأ في فتح صفقة يدوية: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
 if __name__ == '__main__':
     # بدء تحديث البيانات في thread منفصل
