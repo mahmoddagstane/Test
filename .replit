@@ -3,6 +3,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["glibcLocales"]
 
 [unitTest]
 language = "python3"
@@ -13,3 +14,15 @@ requiredFiles = [".replit", "replit.nix"]
 [deployment]
 run = ["python3", "main.py"]
 deploymentTarget = "cloudrun"
+
+[workflows]
+runButton = "Run Trading Bot"
+
+[[workflows.workflow]]
+name = "Run Trading Bot"
+author = 40332703
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 main.py"
