@@ -308,12 +308,26 @@ def update_data():
                     df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
                     if df is None or df.empty:
                         print(f"⚠️  لا توجد بيانات لـ {symbol}")
+                        latest_data['pairs'][symbol]['signal'] = 'لا توجد بيانات'
+                        latest_data['pairs'][symbol]['signal_color'] = 'orange'
                         continue
                         
-                    df = compute_signals(df).dropna()
-
-                    if df.empty:
+                    df = compute_signals(df)
+                    
+                    # التأكد من وجود البيانات المطلوبة
+                    if df.empty or 'rsi' not in df.columns:
                         print(f"⚠️  لا توجد إشارات محسوبة لـ {symbol}")
+                        latest_data['pairs'][symbol]['signal'] = 'خطأ في الحساب'
+                        latest_data['pairs'][symbol]['signal_color'] = 'red'
+                        continue
+                    
+                    # إزالة الصفوف الفارغة فقط بعد التحقق
+                    df = df.dropna()
+                    
+                    if df.empty:
+                        print(f"⚠️  لا توجد بيانات صالحة لـ {symbol}")
+                        latest_data['pairs'][symbol]['signal'] = 'بيانات غير كافية'
+                        latest_data['pairs'][symbol]['signal_color'] = 'orange'
                         continue
 
                     last = df.iloc[-1]
