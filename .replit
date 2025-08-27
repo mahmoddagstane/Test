@@ -16,7 +16,7 @@ run = ["python3", "main.py"]
 deploymentTarget = "cloudrun"
 
 [workflows]
-runButton = "Run Trading Bot"
+runButton = "تشغيل الواجهة"
 
 [[workflows.workflow]]
 name = "Run Trading Bot"
@@ -26,3 +26,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 main.py"
+
+[[workflows.workflow]]
+name = "تشغيل الواجهة"
+author = 40332703
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 web_interface.py"
