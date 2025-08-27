@@ -11,10 +11,14 @@ import time
 from datetime import datetime, timezone
 import os
 import requests
-from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOLS, TIMEFRAME, RSI_PERIOD, RSI_OS, RSI_OB, BOT_LIVE, ACCOUNT_PER_PAIR
+from main import make_exchange, fetch_ohlcv_df, compute_signals, SYMBOLS, TIMEFRAME, RSI_PERIOD, RSI_OS, RSI_OB, BOT_LIVE, ACCOUNT_PER_PAIR, get_secret
 
 # ReplDB للحفظ الثابت
-REPLIT_DB_URL = os.environ.get('REPLIT_DB_URL')
+REPLIT_DB_URL = get_secret('REPLIT_DB_URL', os.environ.get('REPLIT_DB_URL'))
+
+# إعدادات الخادم
+WEB_HOST = get_secret("WEB_HOST", "0.0.0.0")
+WEB_PORT = int(get_secret("WEB_PORT", "5000"))
 
 def save_to_db(key, data):
     """حفظ البيانات في ReplDB"""
@@ -205,6 +209,24 @@ def simulate_trading_data():
 
 app = Flask(__name__)
 
+def check_secrets_status():
+    """فحص حالة المفاتيح والإعدادات"""
+    status = {
+        'api_key_exists': bool(get_secret("BINANCE_API_KEY")),
+        'api_secret_exists': bool(get_secret("BINANCE_API_SECRET")),
+        'using_secrets': bool(os.environ.get("BINANCE_API_KEY")),
+        'using_env_file': bool(os.getenv("BINANCE_API_KEY")),
+        'bot_live': BOT_LIVE,
+        'all_settings': {
+            'timeframe': TIMEFRAME,
+            'rsi_period': RSI_PERIOD,
+            'account_per_pair': ACCOUNT_PER_PAIR,
+            'risk_per_trade': RISK_PER_TRADE_USD,
+            'poll_seconds': int(get_secret("BOT_POLL_SECONDS", "30"))
+        }
+    }
+    return status
+
 # تحميل البيانات المحفوظة
 saved_trades = load_from_db('trades_data', {
     'active': [],
@@ -255,8 +277,8 @@ def update_data():
     global latest_data
     
     # التحقق من وجود مفاتيح API
-    api_key = os.getenv("BINANCE_API_KEY", "")
-    api_secret = os.getenv("BINANCE_API_SECRET", "")
+    api_key = get_secret("BINANCE_API_KEY", "")
+    api_secret = get_secret("BINANCE_API_SECRET", "")
     
     if not api_key or not api_secret or api_key == "your_testnet_api_key_here":
         print("⚠️  مفاتيح API غير متوفرة - يتم استخدام بيانات تجريبية")
@@ -377,6 +399,10 @@ def close_trade_api(trade_id):
             break
     return jsonify({'success': True})
 
+@app.route('/api/secrets_status')
+def get_secrets_status():
+    return jsonify(check_secrets_status())
+
 @app.route('/api/manual_trade', methods=['POST'])
 def manual_trade():
     try:
@@ -421,6 +447,7 @@ if __name__ == '__main__':
     data_thread.start()
     
     # بدء الخادم
-    print(f"تشغيل واجهة الويب على http://0.0.0.0:5000")
+    print(f"تشغيل واجهة الويب على http://{WEB_HOST}:{WEB_PORT}")
     print(f"الأزواج المتابعة: {SYMBOLS}")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    print(f"استخدام مفاتيح API من: {'Secrets' if get_secret('BINANCE_API_KEY') else '.env'}")
+    app.run(host=WEB_HOST, port=WEB_PORT, debug=False)

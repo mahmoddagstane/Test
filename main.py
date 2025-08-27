@@ -20,25 +20,38 @@ import ccxt
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
+# تحميل متغيرات البيئة من .env (للتطوير المحلي)
 load_dotenv()
+
+def get_secret(key, default=None):
+    """
+    جلب المتغيرات من Secrets أولاً، ثم من متغيرات البيئة
+    """
+    # محاولة جلب من Secrets في Replit
+    value = os.environ.get(key)
+    if value is None:
+        # محاولة جلب من ملف .env
+        value = os.getenv(key, default)
+    return value
 
 # -------------------- الإعدادات --------------------
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT"]
-TIMEFRAME = os.getenv("BOT_TIMEFRAME", "15m")
-RSI_PERIOD = int(os.getenv("BOT_RSI_PERIOD", 14))
-RSI_OS = float(os.getenv("RSI_OS", 30))
-RSI_OB = float(os.getenv("RSI_OB", 70))
-ACCOUNT_PER_PAIR = float(os.getenv("ACCOUNT_PER_PAIR", 200))
-RISK_PER_TRADE_USD = float(os.getenv("RISK_PER_TRADE_USD", 4))
-TAKE_PROFIT_R = float(os.getenv("TAKE_PROFIT_R", 1.5))
-BOT_LIVE = os.getenv("BOT_LIVE", "false").lower() == "true"
+TIMEFRAME = get_secret("BOT_TIMEFRAME", "15m")
+RSI_PERIOD = int(get_secret("BOT_RSI_PERIOD", "14"))
+RSI_OS = float(get_secret("RSI_OS", "30"))
+RSI_OB = float(get_secret("RSI_OB", "70"))
+ACCOUNT_PER_PAIR = float(get_secret("ACCOUNT_PER_PAIR", "200"))
+RISK_PER_TRADE_USD = float(get_secret("RISK_PER_TRADE_USD", "4"))
+TAKE_PROFIT_R = float(get_secret("TAKE_PROFIT_R", "1.5"))
+BOT_LIVE = get_secret("BOT_LIVE", "false").lower() == "true"
 
-API_KEY = os.getenv("BINANCE_API_KEY", "")
-API_SECRET = os.getenv("BINANCE_API_SECRET", "")
+# مفاتيح API من Secrets
+API_KEY = get_secret("BINANCE_API_KEY", "")
+API_SECRET = get_secret("BINANCE_API_SECRET", "")
 
-POLL_SECONDS = int(os.getenv("BOT_POLL_SECONDS", 30))
-MIN_NOTIONAL_USD = float(os.getenv("BOT_MIN_NOTIONAL_USD", "10"))
-SLIPPAGE_BPS = float(os.getenv("BOT_SLIPPAGE_BPS", "10"))
+POLL_SECONDS = int(get_secret("BOT_POLL_SECONDS", "30"))
+MIN_NOTIONAL_USD = float(get_secret("BOT_MIN_NOTIONAL_USD", "10"))
+SLIPPAGE_BPS = float(get_secret("BOT_SLIPPAGE_BPS", "10"))
 
 # -------------------- الدوال --------------------
 def utc_now_iso():
