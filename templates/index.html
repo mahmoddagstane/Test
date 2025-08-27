@@ -1209,8 +1209,20 @@
 
                     // تحديث الصفقات
                     updateTrades(data.trades);
+                    
+                    // معالجة التحديث الناجح
+                    handleSuccessfulUpdate();
                 })
                 .catch(error => {
+                    // زيادة عداد الأخطاء
+                    errorCount++;
+                    
+                    // تجاهل الأخطاء المؤقتة أثناء بدء التشغيل
+                    if (error.message && error.message.includes('Failed to fetch') && errorCount < 5) {
+                        console.log('⏳ انتظار اكتمال تحميل البيانات...');
+                        return;
+                    }
+                    
                     console.error('خطأ في جلب البيانات:', error.message || error);
                     updateConnectionStatus({
                         connection_error: true,
@@ -1218,10 +1230,12 @@
                         api_connected: false
                     });
                     
-                    // عرض رسالة خطأ للمستخدم
-                    document.getElementById('balance').textContent = '-- خطأ --';
-                    document.getElementById('total-balance').textContent = '-- خطأ --';
-                    document.getElementById('last-update').textContent = 'خطأ في التحديث';
+                    // عرض رسالة خطأ للمستخدم فقط بعد عدة محاولات فاشلة
+                    if (errorCount > 3) {
+                        document.getElementById('balance').textContent = '-- خطأ --';
+                        document.getElementById('total-balance').textContent = '-- خطأ --';
+                        document.getElementById('last-update').textContent = 'خطأ في التحديث';
+                    }
                 });
         }
 
@@ -1573,16 +1587,35 @@
 
         // متغير لحفظ البيانات الحالية
         let latest_data = {};
+        let errorCount = 0;
+        let updateInterval;
 
         // دالة فتح لوحة Debug
         function openDebugPanel() {
             window.open('http://localhost:5001', '_blank');
         }
 
-        // تحديث البيانات كل 5 ثواني
-        updateData();
-        setInterval(updateData, 5000);
-        loadSecretsStatus(); // استدعاء الدالة للتحقق من حالة المفاتيح عند تحميل الصفحة
+        // تحديث البيانات مع معالجة ذكية للأخطاء
+        function startDataUpdates() {
+            updateData();
+            updateInterval = setInterval(() => {
+                updateData();
+                // إعادة تعيين عداد الأخطاء كل دقيقة
+                if (errorCount > 0) {
+                    errorCount = Math.max(0, errorCount - 1);
+                }
+            }, 5000);
+        }
+
+        function handleSuccessfulUpdate() {
+            errorCount = 0; // إعادة تعيين عداد الأخطاء عند نجاح التحديث
+        }
+
+        // بدء التحديثات
+        setTimeout(() => {
+            startDataUpdates();
+            loadSecretsStatus();
+        }, 1000); // انتظار ثانية واحدة قبل بدء التحديث
     </script>
 </body>
 </html>
