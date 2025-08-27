@@ -128,8 +128,20 @@ def compute_signals(df):
     df["rsi"] = rsi(df["close"], RSI_PERIOD)
     df["ema20"] = df["close"].ewm(span=20).mean()
     df["ema50"] = df["close"].ewm(span=50).mean()
-    df["buy_sig"] = (df["rsi"] < RSI_OS) & (df["ema20"] > df["ema50"])
-    df["sell_sig"] = (df["rsi"] > RSI_OB) & (df["ema20"] < df["ema50"])
+    
+    # شروط أكثر مرونة للإشارات
+    df["buy_sig"] = (
+        (df["rsi"] < 35) &  # RSI أقل من 35 بدلاً من 30
+        (df["ema20"] > df["ema50"]) |  # EMA صاعد أو
+        ((df["rsi"] < 25) & (df["rsi"].shift(1) > df["rsi"]))  # RSI منخفض جداً ومتراجع
+    )
+    
+    df["sell_sig"] = (
+        (df["rsi"] > 65) &  # RSI أكبر من 65 بدلاً من 70
+        (df["ema20"] < df["ema50"]) |  # EMA هابط أو
+        ((df["rsi"] > 75) & (df["rsi"].shift(1) < df["rsi"]))  # RSI عالي جداً ومرتفع
+    )
+    
     return df
 
 def size_position_usdt(entry_price: float, account_size: float = ACCOUNT_PER_PAIR) -> (float, float):
@@ -149,19 +161,28 @@ def place_orders(exchange, symbol, side, entry_price, stop_price, take_profit_pr
             print(f"[{utc_now_iso()}] Skipping {symbol}: below min notional ({amount*entry_price:.2f} < {MIN_NOTIONAL_USD})")
             return results
         try:
-            results["entry"] = exchange.create_order(symbol, "limit", side, amount, entry_price)
+            # تنفيذ أمر السوق بدلاً من أمر محدد للدخول السريع
+            results["entry"] = exchange.create_market_order(symbol, side, amount)
+            actual_price = float(results["entry"]["average"]) if results["entry"]["average"] else entry_price
+            
+            # وضع أمر جني الأرباح
             opp_side = "sell" if side == "buy" else "buy"
             results["tp"] = exchange.create_order(symbol, "limit", opp_side, amount, round_price(exchange, symbol, take_profit_price))
-            results["stop"] = {"stop_price": stop_price}
-            print(f"[{utc_now_iso()}] LIVE ORDER: {side.upper()} {amount:.6f} {symbol} @ {entry_price:.4f}")
+            
+            # حفظ معلومات وقف الخسارة للمراقبة
+            results["stop"] = {"stop_price": stop_price, "amount": amount, "side": opp_side}
+            
+            print(f"[{utc_now_iso()}] ✅ EXECUTED: {side.upper()} {amount:.6f} {symbol} @ {actual_price:.4f}")
+            print(f"[{utc_now_iso()}] 📊 TP: {take_profit_price:.4f} | SL: {stop_price:.4f}")
+            
         except Exception as e:
-            print(f"[{utc_now_iso()}] Order placement failed for {symbol}: {e}")
+            print(f"[{utc_now_iso()}] ❌ Order execution failed for {symbol}: {e}")
     else:
-        print(f"[DRY-RUN] Would place {side.upper()} LIMIT {amount:.6f} {symbol} @ {entry_price:.4f}")
+        print(f"[DRY-RUN] Would place {side.upper()} MARKET {amount:.6f} {symbol} @ {entry_price:.4f}")
         print(f"[DRY-RUN] Would set STOP @ {stop_price:.4f} and TP @ {take_profit_price:.4f}")
     return results
 
-def process_symbol(exchange, symbol, positions):
+def process_symbol(exchange, symbol, positions, open_orders):
     """معالجة زوج واحد"""
     try:
         df = fetch_ohlcv_df(exchange, symbol, TIMEFRAME, limit=max(200, RSI_PERIOD + 50))
@@ -179,24 +200,63 @@ def process_symbol(exchange, symbol, positions):
         
         print(f"[{utc_now_iso()}] {symbol}: Price={price:.4f}, RSI={rsi_v:.2f}, EMA20={ema20:.4f}, EMA50={ema50:.4f}")
         
+        # فحص أوامر وقف الخسارة للصفقات المفتوحة
+        if symbol in open_orders and open_orders[symbol]:
+            stop_info = open_orders[symbol].get("stop")
+            if stop_info and price <= stop_info["stop_price"]:
+                try:
+                    # تنفيذ وقف الخسارة
+                    if BOT_LIVE:
+                        exchange.create_market_order(symbol, stop_info["side"], stop_info["amount"])
+                        print(f"[{utc_now_iso()}] 🛑 STOP LOSS EXECUTED: {symbol} @ {price:.4f}")
+                    else:
+                        print(f"[DRY-RUN] Would execute STOP LOSS for {symbol} @ {price:.4f}")
+                    
+                    positions[symbol] = False
+                    open_orders[symbol] = None
+                except Exception as e:
+                    print(f"[{utc_now_iso()}] Stop loss execution failed: {e}")
+        
         if not positions[symbol]:
             if last["buy_sig"]:
                 qty, notional = size_position_usdt(price)
-                entry_price = pct_to_price(price, -SLIPPAGE_BPS)
+                entry_price = price  # استخدام سعر السوق مباشرة
                 stop_price = price * 0.98  # 2% stop loss
                 tp_price = price + TAKE_PROFIT_R * (price - stop_price)
                 
-                print(f"[{utc_now_iso()}] BUY SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f}, EMA Bull)")
-                place_orders(exchange, symbol, "buy", entry_price, stop_price, tp_price, qty)
-                positions[symbol] = True
+                print(f"[{utc_now_iso()}] 🟢 BUY SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f})")
+                results = place_orders(exchange, symbol, "buy", entry_price, stop_price, tp_price, qty)
                 
-            elif last["sell_sig"]:
-                print(f"[{utc_now_iso()}] SELL SIGNAL: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f}, EMA Bear) - Spot mode, no short")
+                if results["entry"]:
+                    positions[symbol] = True
+                    open_orders[symbol] = results
+                    print(f"[{utc_now_iso()}] 📈 Position opened for {symbol}")
+                
         else:
-            # شروط الإغلاق
-            if rsi_v > 50 or last["sell_sig"]:
-                print(f"[{utc_now_iso()}] EXIT CONDITION: {symbol} @ {price:.4f} (RSI: {rsi_v:.2f})")
-                positions[symbol] = False
+            # شروط الإغلاق - مراجعة أكثر مرونة
+            if rsi_v > 60 or last["sell_sig"] or (rsi_v > 55 and ema20 < ema50):
+                try:
+                    if BOT_LIVE and symbol in open_orders and open_orders[symbol]:
+                        # إلغاء أمر جني الأرباح المعلق
+                        tp_order = open_orders[symbol].get("tp")
+                        if tp_order:
+                            try:
+                                exchange.cancel_order(tp_order["id"], symbol)
+                            except:
+                                pass
+                        
+                        # تنفيذ بيع بسعر السوق
+                        qty = open_orders[symbol]["entry"]["amount"]
+                        exchange.create_market_order(symbol, "sell", qty)
+                        print(f"[{utc_now_iso()}] 💰 MANUAL EXIT: {symbol} @ {price:.4f}")
+                    else:
+                        print(f"[DRY-RUN] Would close position for {symbol} @ {price:.4f}")
+                    
+                    positions[symbol] = False
+                    open_orders[symbol] = None
+                    
+                except Exception as e:
+                    print(f"[{utc_now_iso()}] Manual exit failed: {e}")
                 
     except Exception as e:
         print(f"[{utc_now_iso()}] ERROR processing {symbol}: {e}")
@@ -205,6 +265,9 @@ def main():
     print(f"=== Multi-Pair RSI+EMA Bot | LIVE_TRADING={BOT_LIVE} | {utc_now_iso()} ===")
     print(f"Symbols: {SYMBOLS}")
     print(f"Account per pair: ${ACCOUNT_PER_PAIR}, Risk per trade: ${RISK_PER_TRADE_USD}")
+    
+    if not BOT_LIVE:
+        print("⚠️  BOT في وضع DRY-RUN. لتفعيل التداول الحقيقي، اضبط BOT_LIVE=true في Secrets")
     
     exchange = make_exchange()
     try:
@@ -216,6 +279,7 @@ def main():
         print(f"Warning: Could not load markets: {e}")
     
     positions = {symbol: False for symbol in SYMBOLS}
+    open_orders = {symbol: None for symbol in SYMBOLS}  # تتبع الأوامر المفتوحة
     
     iter_count = 0
     
@@ -225,20 +289,27 @@ def main():
             
             # معالجة كل زوج
             for symbol in SYMBOLS:
-                process_symbol(exchange, symbol, positions)
-                time.sleep(1)  # تأخير قصير بين الأزواج
+                process_symbol(exchange, symbol, positions, open_orders)
+                time.sleep(2)  # تأخير أطول بين الأزواج لتجنب Rate Limits
             
-            # طباعة الأرصدة كل 20 iteration
-            if iter_count % 20 == 0:
+            # طباعة الأرصدة والإحصائيات كل 10 iterations
+            if iter_count % 10 == 0:
                 try:
                     bal = exchange.fetch_balance()
                     usdt_free = bal.get('USDT', {}).get('free', 0.0)
-                    print(f"[{utc_now_iso()}] Free USDT (testnet): {usdt_free}")
+                    btc_balance = bal.get('BTC', {}).get('free', 0.0)
+                    eth_balance = bal.get('ETH', {}).get('free', 0.0)
+                    print(f"[{utc_now_iso()}] 💰 Balances - USDT: {usdt_free:.2f}, BTC: {btc_balance:.6f}, ETH: {eth_balance:.6f}")
                 except Exception as e:
                     print(f"[{utc_now_iso()}] fetch_balance() failed: {e}")
             
+            # إحصائيات الصفقات
+            active_count = sum(1 for active in positions.values() if active)
+            active_symbols = [s for s, active in positions.items() if active]
+            
+            print(f"📊 Active positions ({active_count}/4): {active_symbols}")
+            
             iter_count += 1
-            print(f"Active positions: {[s for s, active in positions.items() if active]}")
             time.sleep(POLL_SECONDS)
             
         except KeyboardInterrupt:
